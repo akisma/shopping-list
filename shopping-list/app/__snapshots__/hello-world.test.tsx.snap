@@ -1,0 +1,12 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Test Infrastructure should verify React Native Testing Library works 1`] = `
+<View>
+  <Text>
+    Hello World
+  </Text>
+  <Text>
+    Shopping List App
+  </Text>
+</View>
+`;
