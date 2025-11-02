@@ -37,5 +37,43 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+// Mock expo-router
+jest.mock('expo-router', () => {
+  const React = require('react');
+  const { View, Text, Pressable } = require('react-native');
+  
+  // Mock Link component with all its sub-components
+  const Link = ({ children, href }) => {
+    return React.createElement(View, { testID: 'mock-link', accessibilityRole: 'link' }, children);
+  };
+  
+  Link.Trigger = ({ children }) => React.createElement(Pressable, null, children);
+  Link.Preview = () => null;
+  Link.Menu = ({ children, title, icon }) => React.createElement(View, null, children);
+  Link.MenuAction = ({ title }) => React.createElement(Text, null, title);
+  
+  return {
+    Link,
+    router: {
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+    },
+    useRouter: () => ({
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+    }),
+    usePathname: () => '/',
+    useLocalSearchParams: () => ({}),
+    useGlobalSearchParams: () => ({}),
+  };
+});
+
+// Mock expo-image
+jest.mock('expo-image', () => ({
+  Image: 'Image',
+}));
+
 // Set up global test timeout
 jest.setTimeout(10000);
