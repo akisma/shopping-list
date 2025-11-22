@@ -18,8 +18,14 @@ npm install
 ### Development
 
 ```bash
-# Start dev server with hot reload
+# Start dev server with hot reload (recommended - handles stdin properly)
+./start-dev.sh
+
+# Alternative: Run directly with npm (may require stdin redirection in background)
 npm run dev
+
+# Run simple mode without watch (no auto-reload)
+npm run dev:simple
 
 # Run tests
 npm test
@@ -33,6 +39,8 @@ npm run lint
 # Run linter with auto-fix
 npm run lint:fix
 ```
+
+**Note**: When running in background, use `./start-dev.sh` which handles stdin redirection properly to prevent process suspension.
 
 ### Build & Production
 
