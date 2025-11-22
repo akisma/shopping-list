@@ -9,7 +9,16 @@ import ShoppingListsScreen from './shopping-lists';
 import { useShoppingLists } from '@/hooks/use-shopping-lists';
 
 // Mock the hooks
-jest.mock('@/hooks/use-shopping-lists');
+jest.mock('@/hooks/use-shopping-lists', () => ({
+  useShoppingLists: jest.fn(),
+  useCreateShoppingList: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    reset: jest.fn(),
+  })),
+}));
 
 const mockUseShoppingLists = useShoppingLists as jest.MockedFunction<typeof useShoppingLists>;
 

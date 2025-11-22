@@ -3,7 +3,7 @@
  * Main screen displaying all shopping lists
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,12 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { useShoppingLists } from '@/hooks/use-shopping-lists';
+import { useShoppingLists, useCreateShoppingList } from '@/hooks/use-shopping-lists';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -21,8 +25,46 @@ import type { ShoppingListWithCount } from '@/types/api';
 
 export default function ShoppingListsScreen() {
   const { data: lists, isLoading, isError, error, refetch } = useShoppingLists();
+  const createMutation = useCreateShoppingList();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  
+  // Modal state
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [validationError, setValidationError] = useState('');
+
+  // Handle create list
+  const handleCreateList = () => {
+    // Validation
+    if (!newListName.trim()) {
+      setValidationError('List name is required');
+      return;
+    }
+
+    // Create list
+    createMutation.mutate(
+      { name: newListName.trim() },
+      {
+        onSuccess: () => {
+          // Close modal and reset form
+          setIsCreateModalVisible(false);
+          setNewListName('');
+          setValidationError('');
+        },
+        onError: () => {
+          setValidationError('Failed to create list. Please try again.');
+        },
+      }
+    );
+  };
+
+  const openCreateModal = () => {
+    setIsCreateModalVisible(true);
+    setNewListName('');
+    setValidationError('');
+    createMutation.reset();
+  };
 
   // Check if error is a network/backend connectivity issue
   const isBackendDown = isError && (
@@ -95,12 +137,9 @@ export default function ShoppingListsScreen() {
         </ThemedText>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.tint }]}
-          onPress={() => {
-            // TODO: Open create modal
-            console.log('Create list');
-          }}
+          onPress={openCreateModal}
         >
-          <Text style={styles.buttonText}>Create Your First List</Text>
+          <Text style={styles.buttonText}>Create List</Text>
         </TouchableOpacity>
       </ThemedView>
     );
@@ -136,10 +175,7 @@ export default function ShoppingListsScreen() {
         <TouchableOpacity
           testID="create-list-button"
           style={[styles.createButton, { backgroundColor: colors.tint }]}
-          onPress={() => {
-            // TODO: Open create modal
-            console.log('Create list');
-          }}
+          onPress={openCreateModal}
         >
           <Text style={styles.createButtonText}>+</Text>
         </TouchableOpacity>
@@ -152,6 +188,73 @@ export default function ShoppingListsScreen() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Create List Modal */}
+      <Modal
+        testID="create-list-modal"
+        visible={isCreateModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsCreateModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <ThemedText style={styles.modalTitle}>Create New List</ThemedText>
+            
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: validationError ? '#f44336' : colors.icon,
+                  backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f5f5f5',
+                }
+              ]}
+              placeholder="Enter list name"
+              placeholderTextColor={colors.icon}
+              value={newListName}
+              onChangeText={(text) => {
+                setNewListName(text);
+                if (validationError) setValidationError('');
+              }}
+              autoFocus
+            />
+            
+            {validationError ? (
+              <Text style={styles.errorText}>{validationError}</Text>
+            ) : null}
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsCreateModalVisible(false)}
+                disabled={createMutation.isPending}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.createModalButton,
+                  { backgroundColor: colors.tint }
+                ]}
+                onPress={handleCreateList}
+                disabled={createMutation.isPending}
+              >
+                {createMutation.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.createModalButtonText}>Create</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ThemedView>
   );
 }
@@ -286,6 +389,67 @@ const styles = StyleSheet.create({
     minHeight: 44, // Accessibility - minimum touch target
   },
   buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '85%',
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    minHeight: 44, // Accessibility - minimum touch target
+  },
+  cancelButton: {
+    backgroundColor: '#e0e0e0',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  createModalButton: {
+    // backgroundColor set dynamically from colors.tint
+  },
+  createModalButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
