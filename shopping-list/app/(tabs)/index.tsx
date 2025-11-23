@@ -1,98 +1,585 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+/**
+ * Shopping Lists Screen (TDD - GREEN Phase)
+ * Main screen displaying all shopping lists
+ */
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useShoppingLists, useCreateShoppingList, useDeleteShoppingList } from '@/hooks/use-shopping-lists';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import type { ShoppingListWithCount } from '@/types/api';
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+export default function ShoppingListsScreen() {
+  const router = useRouter();
+  const { data: lists, isLoading, isError, error, refetch } = useShoppingLists();
+  const createMutation = useCreateShoppingList();
+  const deleteMutation = useDeleteShoppingList();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+  
+  // Create modal state
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [validationError, setValidationError] = useState('');
+  
+  // Delete confirmation state
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [listToDelete, setListToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+
+  // Handle create list
+  const handleCreateList = () => {
+    // Validation
+    if (!newListName.trim()) {
+      setValidationError('List name is required');
+      return;
+    }
+
+    // Create list
+    createMutation.mutate(
+      { name: newListName.trim() },
+      {
+        onSuccess: () => {
+          // Close modal and reset form
+          setIsCreateModalVisible(false);
+          setNewListName('');
+          setValidationError('');
+        },
+        onError: () => {
+          setValidationError('Failed to create list. Please try again.');
+        },
+      }
+    );
+  };
+
+  const openCreateModal = () => {
+    setIsCreateModalVisible(true);
+    setNewListName('');
+    setValidationError('');
+    createMutation.reset();
+  };
+
+  // Handle delete list
+  const openDeleteConfirm = (id: string, name: string) => {
+    setListToDelete({ id, name });
+    setDeleteConfirmVisible(true);
+    setDeleteError('');
+  };
+
+  const handleDeleteList = () => {
+    if (!listToDelete) return;
+
+    deleteMutation.mutate(listToDelete.id, {
+      onSuccess: () => {
+        setDeleteConfirmVisible(false);
+        setListToDelete(null);
+        setDeleteError('');
+      },
+      onError: () => {
+        setDeleteError('Failed to delete list. Please try again.');
+      },
+    });
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmVisible(false);
+    setListToDelete(null);
+    setDeleteError('');
+  };
+
+  // Check if error is a network/backend connectivity issue
+  const isBackendDown = isError && (
+    error?.message?.includes('ECONNREFUSED') ||
+    error?.message?.includes('Network Error') ||
+    error?.message?.includes('timeout')
+  );
+
+  // Loading State
+  if (isLoading) {
+    return (
+      <ThemedView style={styles.centerContainer}>
+        <ActivityIndicator
+          testID="loading-indicator"
+          size="large"
+          color={colors.tint}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
+        <ThemedText style={styles.loadingText}>Loading lists...</ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    );
+  }
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+  // Backend Down - Show warning but allow UI exploration
+  if (isBackendDown) {
+    return (
+      <ThemedView style={styles.centerContainer}>
+        <ThemedText style={styles.warningTitle}>⚠️ Backend Unavailable</ThemedText>
+        <ThemedText style={styles.warningMessage}>
+          Warning: Cannot communicate with backend.{'\n'}
+          All functionality is currently unavailable.
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
+        <ThemedText style={styles.warningDetail}>
+          Make sure the backend server is running on localhost:3001
         </ThemedText>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.tint }]}
+          onPress={() => refetch()}
+        >
+          <Text style={styles.buttonText}>Retry Connection</Text>
+        </TouchableOpacity>
       </ThemedView>
-    </ParallaxScrollView>
+    );
+  }
+
+  // Other Error State
+  if (isError) {
+    return (
+      <ThemedView style={styles.centerContainer}>
+        <ThemedText style={styles.errorTitle}>Something went wrong</ThemedText>
+        <ThemedText style={styles.errorMessage}>
+          {error?.message || 'Failed to load shopping lists'}
+        </ThemedText>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.tint }]}
+          onPress={() => refetch()}
+        >
+          <Text style={styles.buttonText}>Try Again</Text>
+        </TouchableOpacity>
+      </ThemedView>
+    );
+  }
+
+  // Empty State
+  if (!lists || lists.length === 0) {
+    return (
+      <ThemedView style={styles.centerContainer}>
+        <ThemedText style={styles.emptyTitle}>No Shopping Lists</ThemedText>
+        <ThemedText style={styles.emptyMessage}>
+          Create your first list to get started
+        </ThemedText>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.tint }]}
+          onPress={openCreateModal}
+        >
+          <Text style={styles.buttonText}>Create List</Text>
+        </TouchableOpacity>
+      </ThemedView>
+    );
+  }
+
+  // Data Display
+  const renderItem = ({ item }: { item: ShoppingListWithCount }) => (
+    <View style={[styles.listCard, { borderColor: colors.icon }]}>
+      <TouchableOpacity
+        style={styles.listCardTouchable}
+        onPress={() => {
+          router.push({
+            pathname: '/(tabs)/list-detail',
+            params: { id: item.id },
+          } as any);
+        }}
+      >
+        <View style={styles.listCardContent}>
+          <ThemedText style={styles.listName}>{item.name}</ThemedText>
+          <ThemedText style={styles.listItemCount}>
+            {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+          </ThemedText>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status, colorScheme ?? 'light') }]}>
+          <Text style={styles.statusText}>{item.status}</Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        testID={`delete-list-${item.id}`}
+        style={styles.deleteButton}
+        onPress={() => openDeleteConfirm(item.id, item.name)}
+      >
+        <Text style={styles.deleteButtonText}>🗑️</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <ThemedView style={styles.container}>
+      <View style={styles.header}>
+        <ThemedText type="title" style={styles.headerTitle}>
+          Shopping Lists
+        </ThemedText>
+        <TouchableOpacity
+          testID="create-list-button"
+          style={[styles.createButton, { backgroundColor: colors.tint }]}
+          onPress={openCreateModal}
+        >
+          <Text style={styles.createButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={lists}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Create List Modal */}
+      <Modal
+        testID="create-list-modal"
+        visible={isCreateModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsCreateModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <ThemedText style={styles.modalTitle}>Create New List</ThemedText>
+            
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: validationError ? '#f44336' : colors.icon,
+                  backgroundColor: colorScheme === 'dark' ? '#2a2a2a' : '#f5f5f5',
+                }
+              ]}
+              placeholder="Enter list name"
+              placeholderTextColor={colors.icon}
+              value={newListName}
+              onChangeText={(text) => {
+                setNewListName(text);
+                if (validationError) setValidationError('');
+              }}
+              autoFocus
+            />
+            
+            {validationError ? (
+              <Text style={styles.errorText}>{validationError}</Text>
+            ) : null}
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsCreateModalVisible(false)}
+                disabled={createMutation.isPending}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.createModalButton,
+                  { backgroundColor: colors.tint }
+                ]}
+                onPress={handleCreateList}
+                disabled={createMutation.isPending}
+              >
+                {createMutation.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.createModalButtonText}>Create</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteConfirmVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={cancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <ThemedText style={styles.modalTitle}>Delete List</ThemedText>
+            <ThemedText style={styles.confirmMessage}>
+              Are you sure you want to delete "{listToDelete?.name}"?
+            </ThemedText>
+            <ThemedText style={styles.confirmDetail}>
+              This action cannot be undone.
+            </ThemedText>
+
+            {deleteError ? (
+              <Text style={styles.errorText}>{deleteError}</Text>
+            ) : null}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={cancelDelete}
+                disabled={deleteMutation.isPending}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.deleteModalButton,
+                ]}
+                onPress={handleDeleteList}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.deleteModalButtonText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </ThemedView>
   );
 }
 
+function getStatusColor(status: string, colorScheme: 'light' | 'dark' | null): string {
+  const baseColors = {
+    active: '#4CAF50',
+    sent: '#2196F3',
+    completed: '#9E9E9E',
+  };
+  return baseColors[status as keyof typeof baseColors] || baseColors.active;
+}
+
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    paddingTop: 60, // Account for status bar
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  createButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createButtonText: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  listContainer: {
+    padding: 16,
+  },
+  listCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
+  listCardTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  listCardContent: {
+    flex: 1,
+  },
+  listName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  listItemCount: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  deleteButtonText: {
+    fontSize: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  emptyMessage: {
+    fontSize: 16,
+    opacity: 0.7,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#f44336',
+  },
+  errorMessage: {
+    fontSize: 16,
+    opacity: 0.7,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  warningTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#ff9800',
+  },
+  warningMessage: {
+    fontSize: 16,
+    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  warningDetail: {
+    fontSize: 14,
+    opacity: 0.7,
+    marginBottom: 24,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  button: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minHeight: 44, // Accessibility - minimum touch target
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '85%',
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    minHeight: 44, // Accessibility - minimum touch target
+  },
+  cancelButton: {
+    backgroundColor: '#e0e0e0',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  createModalButton: {
+    // backgroundColor set dynamically from colors.tint
+  },
+  createModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmMessage: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  confirmDetail: {
+    fontSize: 14,
+    opacity: 0.7,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  deleteModalButton: {
+    backgroundColor: '#f44336',
+  },
+  deleteModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

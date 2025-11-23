@@ -1,55 +1,240 @@
+/**
+ * Shopping Lists Screen Tests (TDD - RED Phase)
+ */
+
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import ShoppingListsScreen from './index';
+import { useShoppingLists } from '@/hooks/use-shopping-lists';
 
-// Import the default export from the component  
-const HomeScreen = require('./index').default; // eslint-disable-line @typescript-eslint/no-require-imports
-
-// Mock ParallaxScrollView to simplify testing
-jest.mock('@/components/parallax-scroll-view', () => {
-  return function ParallaxScrollView({ children }: { children: React.ReactNode }) {
-    // Use require inside the factory to avoid hoisting issues
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { View } = require('react-native');
-    return <View testID="parallax-scroll-view">{children}</View>;
-  };
-});
-
-// Mock HelloWave component
-jest.mock('@/components/hello-wave', () => ({
-  HelloWave: function HelloWave() {
-    return null;
-  },
+// Mock the hooks
+jest.mock('@/hooks/use-shopping-lists', () => ({
+  useShoppingLists: jest.fn(),
+  useCreateShoppingList: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    reset: jest.fn(),
+  })),
+  useDeleteShoppingList: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+  })),
 }));
 
-describe('HomeScreen', () => {
-  it('should render the welcome message', () => {
-    render(<HomeScreen />);
-    
-    expect(screen.getByText('Welcome!')).toBeTruthy();
+const mockUseShoppingLists = useShoppingLists as jest.MockedFunction<typeof useShoppingLists>;
+
+// Helper to create wrapper with QueryClient
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
   });
 
-  it('should render all three step sections', () => {
-    render(<HomeScreen />);
-    
-    expect(screen.getByText('Step 1: Try it')).toBeTruthy();
-    expect(screen.getByText('Step 2: Explore')).toBeTruthy();
-    expect(screen.getByText('Step 3: Get a fresh start')).toBeTruthy();
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  Wrapper.displayName = 'QueryClientWrapper';
+  
+  return Wrapper;
+};
+
+describe('ShoppingListsScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  it('should display instructions for editing the file', () => {
-    render(<HomeScreen />);
-    
-    expect(screen.getByText('app/(tabs)/index.tsx')).toBeTruthy();
+  describe('Loading State', () => {
+    it('should display loading indicator when fetching lists', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isError: false,
+        error: null,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByTestId('loading-indicator')).toBeTruthy();
+    });
+
+    it('should not display empty state while loading', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isError: false,
+        error: null,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.queryByText(/no shopping lists/i)).toBeNull();
+    });
   });
 
-  it('should display reset project instructions', () => {
-    render(<HomeScreen />);
-    
-    expect(screen.getByText('npm run reset-project')).toBeTruthy();
+  describe('Empty State', () => {
+    it('should display empty state when no lists exist', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText(/no shopping lists/i)).toBeTruthy();
+    });
+
+    it('should display create button in empty state', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      const createButtons = screen.getAllByText(/create your first list/i);
+      expect(createButtons.length).toBeGreaterThan(0);
+    });
   });
 
-  it('should match snapshot', () => {
-    const { toJSON } = render(<HomeScreen />);
-    expect(toJSON()).toMatchSnapshot();
+  describe('Error State', () => {
+    it('should display backend unavailable warning for connection errors', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error('connect ECONNREFUSED 127.0.0.1:3001'),
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText(/backend unavailable/i)).toBeTruthy();
+      expect(screen.getByText(/cannot communicate with backend/i)).toBeTruthy();
+    });
+
+    it('should display backend unavailable warning for network errors', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error('Network Error'),
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText(/backend unavailable/i)).toBeTruthy();
+    });
+
+    it('should display backend unavailable warning for timeout errors', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error('timeout of 10000ms exceeded'),
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText(/backend unavailable/i)).toBeTruthy();
+    });
+
+    it('should display generic error message for other errors', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error('Something else went wrong'),
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText(/something went wrong/i)).toBeTruthy();
+    });
+
+    it('should display retry button in error state', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error('Network Error'),
+        refetch: jest.fn(),
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText(/retry connection/i)).toBeTruthy();
+    });
+  });
+
+  describe('Data Display', () => {
+    const mockLists = [
+      {
+        id: '1',
+        name: 'Groceries',
+        status: 'active' as const,
+        itemCount: 5,
+        createdAt: '2025-11-02T00:00:00Z',
+        updatedAt: '2025-11-02T00:00:00Z',
+      },
+      {
+        id: '2',
+        name: 'Hardware Store',
+        status: 'active' as const,
+        itemCount: 3,
+        createdAt: '2025-11-02T00:00:00Z',
+        updatedAt: '2025-11-02T00:00:00Z',
+      },
+    ];
+
+    it('should display list of shopping lists', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: mockLists,
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText('Groceries')).toBeTruthy();
+      expect(screen.getByText('Hardware Store')).toBeTruthy();
+    });
+
+    it('should display item count for each list', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: mockLists,
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByText(/5 items/i)).toBeTruthy();
+      expect(screen.getByText(/3 items/i)).toBeTruthy();
+    });
+
+    it('should display create button when lists exist', () => {
+      mockUseShoppingLists.mockReturnValue({
+        data: mockLists,
+        isLoading: false,
+        isError: false,
+        error: null,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByTestId('create-list-button')).toBeTruthy();
+    });
   });
 });
