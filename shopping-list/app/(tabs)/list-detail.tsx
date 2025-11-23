@@ -11,16 +11,14 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShoppingListDetail, useCreateItem, useDeleteItem } from '@/hooks/use-shopping-lists';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
+import { ItemFormModal, type ItemFormData } from '@/components/ui/item-form-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ShoppingListItem } from '@/types/api';
@@ -37,9 +35,6 @@ export default function ListDetailScreen() {
 
   // Create item modal state
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
-  const [itemName, setItemName] = useState('');
-  const [itemQuantity, setItemQuantity] = useState('');
-  const [itemNotes, setItemNotes] = useState('');
   const [validationError, setValidationError] = useState('');
 
   // Delete item modal state
@@ -49,42 +44,29 @@ export default function ListDetailScreen() {
 
   const openCreateModal = () => {
     setIsCreateModalVisible(true);
-    setItemName('');
-    setItemQuantity('');
-    setItemNotes('');
     setValidationError('');
     createItem.reset();
   };
 
   const closeCreateModal = () => {
     setIsCreateModalVisible(false);
-    setItemName('');
-    setItemQuantity('');
-    setItemNotes('');
     setValidationError('');
     createItem.reset();
   };
 
-  const handleCreateItem = () => {
+  const handleCreateItem = (data: ItemFormData) => {
     // Validate name
-    if (!itemName.trim()) {
+    if (!data.name.trim()) {
       setValidationError('Item name is required');
       return;
     }
 
     // Create item
-    createItem.mutate(
-      {
-        name: itemName.trim(),
-        quantity: itemQuantity.trim() || undefined,
-        notes: itemNotes.trim() || undefined,
+    createItem.mutate(data, {
+      onSuccess: () => {
+        closeCreateModal();
       },
-      {
-        onSuccess: () => {
-          closeCreateModal();
-        },
-      }
-    );
+    });
   };
 
   const openDeleteModal = (item: ShoppingListItem) => {
@@ -173,118 +155,15 @@ export default function ListDetailScreen() {
         </View>
 
         {/* Create Item Modal */}
-        <Modal
+        <ItemFormModal
           visible={isCreateModalVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={closeCreateModal}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalOverlay}
-          >
-            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-              <ThemedText style={styles.modalTitle}>Add Item</ThemedText>
-
-              <TextInput
-                style={[
-                  styles.input,
-                  { 
-                    borderColor: colors.border,
-                    color: colors.text,
-                    backgroundColor: colors.background,
-                  },
-                ]}
-                placeholder="Item name *"
-                placeholderTextColor={colors.tabIconDefault}
-                value={itemName}
-                onChangeText={(text) => {
-                  setItemName(text);
-                  setValidationError('');
-                }}
-                testID="item-name-input"
-                autoFocus
-              />
-
-              <TextInput
-                style={[
-                  styles.input,
-                  { 
-                    borderColor: colors.border,
-                    color: colors.text,
-                    backgroundColor: colors.background,
-                  },
-                ]}
-                placeholder="Quantity (optional)"
-                placeholderTextColor={colors.tabIconDefault}
-                value={itemQuantity}
-                onChangeText={setItemQuantity}
-                testID="item-quantity-input"
-              />
-
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  { 
-                    borderColor: colors.border,
-                    color: colors.text,
-                    backgroundColor: colors.background,
-                  },
-                ]}
-                placeholder="Notes (optional)"
-                placeholderTextColor={colors.tabIconDefault}
-                value={itemNotes}
-                onChangeText={setItemNotes}
-                testID="item-notes-input"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-
-              {validationError && (
-                <Text style={styles.errorText} testID="validation-error">
-                  {validationError}
-                </Text>
-              )}
-
-              {createItem.isError && (
-                <Text style={styles.errorText} testID="create-error">
-                  Failed to add item. Please try again.
-                </Text>
-              )}
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
-                  onPress={closeCreateModal}
-                  testID="cancel-item-button"
-                  disabled={createItem.isPending}
-                >
-                  <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    styles.createButton,
-                    { backgroundColor: colors.tint },
-                    createItem.isPending && styles.disabledButton,
-                  ]}
-                  onPress={handleCreateItem}
-                  testID="save-item-button"
-                  disabled={createItem.isPending}
-                >
-                  {createItem.isPending ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.createButtonText}>Add Item</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+          mode="create"
+          onSave={handleCreateItem}
+          onCancel={closeCreateModal}
+          isLoading={createItem.isPending}
+          error={createItem.isError ? 'Failed to add item. Please try again.' : null}
+          validationError={validationError}
+        />
       </ThemedView>
     );
   }
@@ -333,163 +212,30 @@ export default function ListDetailScreen() {
       </TouchableOpacity>
 
       {/* Create Item Modal */}
-      <Modal
+      <ItemFormModal
         visible={isCreateModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={closeCreateModal}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <ThemedText style={styles.modalTitle}>Add Item</ThemedText>
-
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: colors.border,
-                  color: colors.text,
-                  backgroundColor: colors.background,
-                },
-              ]}
-              placeholder="Item name *"
-              placeholderTextColor={colors.tabIconDefault}
-              value={itemName}
-              onChangeText={(text) => {
-                setItemName(text);
-                setValidationError('');
-              }}
-              testID="item-name-input"
-              autoFocus
-            />
-
-            <TextInput
-              style={[
-                styles.input,
-                { 
-                  borderColor: colors.border,
-                  color: colors.text,
-                  backgroundColor: colors.background,
-                },
-              ]}
-              placeholder="Quantity (optional)"
-              placeholderTextColor={colors.tabIconDefault}
-              value={itemQuantity}
-              onChangeText={setItemQuantity}
-              testID="item-quantity-input"
-            />
-
-            <TextInput
-              style={[
-                styles.input,
-                styles.textArea,
-                { 
-                  borderColor: colors.border,
-                  color: colors.text,
-                  backgroundColor: colors.background,
-                },
-              ]}
-              placeholder="Notes (optional)"
-              placeholderTextColor={colors.tabIconDefault}
-              value={itemNotes}
-              onChangeText={setItemNotes}
-              testID="item-notes-input"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-
-            {validationError && (
-              <Text style={styles.errorText} testID="validation-error">
-                {validationError}
-              </Text>
-            )}
-
-            {createItem.isError && (
-              <Text style={styles.errorText} testID="create-error">
-                Failed to add item. Please try again.
-              </Text>
-            )}
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
-                onPress={closeCreateModal}
-                testID="cancel-item-button"
-                disabled={createItem.isPending}
-              >
-                <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.createButton,
-                  { backgroundColor: colors.tint },
-                  createItem.isPending && styles.disabledButton,
-                ]}
-                onPress={handleCreateItem}
-                testID="save-item-button"
-                disabled={createItem.isPending}
-              >
-                {createItem.isPending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.createButtonText}>Add Item</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        mode="create"
+        onSave={handleCreateItem}
+        onCancel={closeCreateModal}
+        isLoading={createItem.isPending}
+        error={createItem.isError ? 'Failed to add item. Please try again.' : null}
+        validationError={validationError}
+      />
 
       {/* Delete Item Confirmation Modal */}
-      <Modal
+      <ConfirmationModal
         visible={isDeleteModalVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={closeDeleteModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.confirmationModal, { backgroundColor: colors.background }]}>
-            <ThemedText style={styles.confirmationTitle}>Delete Item</ThemedText>
-            <ThemedText style={styles.confirmationMessage}>
-              Are you sure you want to delete "{itemToDelete?.name}"?
-            </ThemedText>
-
-            {deleteError && (
-              <Text style={styles.errorText} testID="delete-error">
-                {deleteError}
-              </Text>
-            )}
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
-                onPress={closeDeleteModal}
-                testID="cancel-delete-button"
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.deleteConfirmButton]}
-                onPress={handleDeleteItem}
-                testID="confirm-delete-button"
-                disabled={deleteItem.isPending}
-              >
-                {deleteItem.isPending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.deleteConfirmButtonText}>Delete</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Delete Item"
+        message={`Are you sure you want to delete "${itemToDelete?.name}"?`}
+        confirmText="Delete"
+        onConfirm={handleDeleteItem}
+        onCancel={closeDeleteModal}
+        isLoading={deleteItem.isPending}
+        error={deleteError}
+        confirmTestID="confirm-delete-button"
+        cancelTestID="cancel-delete-button"
+        errorTestID="delete-error"
+      />
     </ThemedView>
   );
 }
@@ -611,103 +357,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '300',
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
-    minHeight: 44,
-  },
-  textArea: {
-    minHeight: 80,
-    paddingTop: 12,
-  },
-  errorText: {
-    color: '#ff3b30',
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    minHeight: 44,
-  },
-  cancelButton: {
-    borderWidth: 1,
-    backgroundColor: 'transparent',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  createButton: {
-    backgroundColor: '#007AFF',
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
   deleteButton: {
     padding: 8,
     marginLeft: 12,
   },
   deleteButtonText: {
     fontSize: 20,
-  },
-  confirmationModal: {
-    margin: 20,
-    borderRadius: 12,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  confirmationTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  confirmationMessage: {
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  deleteConfirmButton: {
-    backgroundColor: '#ff3b30',
-  },
-  deleteConfirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

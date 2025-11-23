@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { useShoppingLists, useCreateShoppingList, useDeleteShoppingList } from '@/hooks/use-shopping-lists';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ShoppingListWithCount } from '@/types/api';
@@ -304,53 +305,16 @@ export default function ShoppingListsScreen() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <ConfirmationModal
         visible={deleteConfirmVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={cancelDelete}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <ThemedText style={styles.modalTitle}>Delete List</ThemedText>
-            <ThemedText style={styles.confirmMessage}>
-              Are you sure you want to delete "{listToDelete?.name}"?
-            </ThemedText>
-            <ThemedText style={styles.confirmDetail}>
-              This action cannot be undone.
-            </ThemedText>
-
-            {deleteError ? (
-              <Text style={styles.errorText}>{deleteError}</Text>
-            ) : null}
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={cancelDelete}
-                disabled={deleteMutation.isPending}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.deleteModalButton,
-                ]}
-                onPress={handleDeleteList}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.deleteModalButtonText}>Delete</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Delete List"
+        message={`Are you sure you want to delete "${listToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        onConfirm={handleDeleteList}
+        onCancel={cancelDelete}
+        isLoading={deleteMutation.isPending}
+        error={deleteError}
+      />
     </ThemedView>
   );
 }
@@ -558,26 +522,6 @@ const styles = StyleSheet.create({
     // backgroundColor set dynamically from colors.tint
   },
   createModalButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmMessage: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  confirmDetail: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  deleteModalButton: {
-    backgroundColor: '#f44336',
-  },
-  deleteModalButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
