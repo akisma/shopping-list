@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useShoppingListDetail, useCreateItem } from '@/hooks/use-shopping-lists';
+import { useShoppingListDetail, useCreateItem, useDeleteItem } from '@/hooks/use-shopping-lists';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -33,6 +33,7 @@ export default function ListDetailScreen() {
 
   const { data: list, isLoading, isError, error, refetch } = useShoppingListDetail(id!);
   const createItem = useCreateItem(id!);
+  const deleteItem = useDeleteItem(id!);
 
   // Create item modal state
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -40,6 +41,11 @@ export default function ListDetailScreen() {
   const [itemQuantity, setItemQuantity] = useState('');
   const [itemNotes, setItemNotes] = useState('');
   const [validationError, setValidationError] = useState('');
+
+  // Delete item modal state
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<ShoppingListItem | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const openCreateModal = () => {
     setIsCreateModalVisible(true);
@@ -79,6 +85,31 @@ export default function ListDetailScreen() {
         },
       }
     );
+  };
+
+  const openDeleteModal = (item: ShoppingListItem) => {
+    setItemToDelete(item);
+    setIsDeleteModalVisible(true);
+    setDeleteError('');
+  };
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalVisible(false);
+    setItemToDelete(null);
+    setDeleteError('');
+  };
+
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
+
+    deleteItem.mutate(itemToDelete.id, {
+      onSuccess: () => {
+        closeDeleteModal();
+      },
+      onError: () => {
+        setDeleteError('Failed to delete item. Please try again.');
+      },
+    });
   };
 
   // Loading State
@@ -273,6 +304,13 @@ export default function ListDetailScreen() {
           <ThemedText style={styles.itemNotes}>{item.notes}</ThemedText>
         )}
       </View>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => openDeleteModal(item)}
+        testID={`delete-item-button-${item.id}`}
+      >
+        <Text style={styles.deleteButtonText}>🗑️</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -406,6 +444,51 @@ export default function ListDetailScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Delete Item Confirmation Modal */}
+      <Modal
+        visible={isDeleteModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={closeDeleteModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.confirmationModal, { backgroundColor: colors.background }]}>
+            <ThemedText style={styles.confirmationTitle}>Delete Item</ThemedText>
+            <ThemedText style={styles.confirmationMessage}>
+              Are you sure you want to delete "{itemToDelete?.name}"?
+            </ThemedText>
+
+            {deleteError && (
+              <Text style={styles.errorText} testID="delete-error">
+                {deleteError}
+              </Text>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
+                onPress={closeDeleteModal}
+                testID="cancel-delete-button"
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteConfirmButton]}
+                onPress={handleDeleteItem}
+                testID="confirm-delete-button"
+                disabled={deleteItem.isPending}
+              >
+                {deleteItem.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.deleteConfirmButtonText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </ThemedView>
   );
@@ -592,5 +675,39 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 12,
+  },
+  deleteButtonText: {
+    fontSize: 20,
+  },
+  confirmationModal: {
+    margin: 20,
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  confirmationTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  confirmationMessage: {
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  deleteConfirmButton: {
+    backgroundColor: '#ff3b30',
+  },
+  deleteConfirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
