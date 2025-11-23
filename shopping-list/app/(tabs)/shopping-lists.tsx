@@ -16,7 +16,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useShoppingLists, useCreateShoppingList } from '@/hooks/use-shopping-lists';
+import { useRouter } from 'expo-router';
+import { useShoppingLists, useCreateShoppingList, useDeleteShoppingList } from '@/hooks/use-shopping-lists';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -24,15 +25,22 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ShoppingListWithCount } from '@/types/api';
 
 export default function ShoppingListsScreen() {
+  const router = useRouter();
   const { data: lists, isLoading, isError, error, refetch } = useShoppingLists();
   const createMutation = useCreateShoppingList();
+  const deleteMutation = useDeleteShoppingList();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
-  // Modal state
+  // Create modal state
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [validationError, setValidationError] = useState('');
+  
+  // Delete confirmation state
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [listToDelete, setListToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   // Handle create list
   const handleCreateList = () => {
@@ -64,6 +72,34 @@ export default function ShoppingListsScreen() {
     setNewListName('');
     setValidationError('');
     createMutation.reset();
+  };
+
+  // Handle delete list
+  const openDeleteConfirm = (id: string, name: string) => {
+    setListToDelete({ id, name });
+    setDeleteConfirmVisible(true);
+    setDeleteError('');
+  };
+
+  const handleDeleteList = () => {
+    if (!listToDelete) return;
+
+    deleteMutation.mutate(listToDelete.id, {
+      onSuccess: () => {
+        setDeleteConfirmVisible(false);
+        setListToDelete(null);
+        setDeleteError('');
+      },
+      onError: () => {
+        setDeleteError('Failed to delete list. Please try again.');
+      },
+    });
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmVisible(false);
+    setListToDelete(null);
+    setDeleteError('');
   };
 
   // Check if error is a network/backend connectivity issue
@@ -147,23 +183,34 @@ export default function ShoppingListsScreen() {
 
   // Data Display
   const renderItem = ({ item }: { item: ShoppingListWithCount }) => (
-    <TouchableOpacity
-      style={[styles.listCard, { borderColor: colors.icon }]}
-      onPress={() => {
-        // TODO: Navigate to detail
-        console.log('Navigate to', item.id);
-      }}
-    >
-      <View style={styles.listCardContent}>
-        <ThemedText style={styles.listName}>{item.name}</ThemedText>
-        <ThemedText style={styles.listItemCount}>
-          {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
-        </ThemedText>
-      </View>
-      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status, colorScheme ?? 'light') }]}>
-        <Text style={styles.statusText}>{item.status}</Text>
-      </View>
-    </TouchableOpacity>
+    <View style={[styles.listCard, { borderColor: colors.icon }]}>
+      <TouchableOpacity
+        style={styles.listCardTouchable}
+        onPress={() => {
+          router.push({
+            pathname: '/(tabs)/list-detail',
+            params: { id: item.id },
+          } as any);
+        }}
+      >
+        <View style={styles.listCardContent}>
+          <ThemedText style={styles.listName}>{item.name}</ThemedText>
+          <ThemedText style={styles.listItemCount}>
+            {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+          </ThemedText>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status, colorScheme ?? 'light') }]}>
+          <Text style={styles.statusText}>{item.status}</Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        testID={`delete-list-${item.id}`}
+        style={styles.deleteButton}
+        onPress={() => openDeleteConfirm(item.id, item.name)}
+      >
+        <Text style={styles.deleteButtonText}>🗑️</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -255,6 +302,55 @@ export default function ShoppingListsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteConfirmVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={cancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <ThemedText style={styles.modalTitle}>Delete List</ThemedText>
+            <ThemedText style={styles.confirmMessage}>
+              Are you sure you want to delete "{listToDelete?.name}"?
+            </ThemedText>
+            <ThemedText style={styles.confirmDetail}>
+              This action cannot be undone.
+            </ThemedText>
+
+            {deleteError ? (
+              <Text style={styles.errorText}>{deleteError}</Text>
+            ) : null}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={cancelDelete}
+                disabled={deleteMutation.isPending}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.deleteModalButton,
+                ]}
+                onPress={handleDeleteList}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.deleteModalButtonText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -307,11 +403,16 @@ const styles = StyleSheet.create({
   listCard: {
     borderRadius: 12,
     borderWidth: 1,
-    padding: 16,
     marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listCardTouchable: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 16,
   },
   listCardContent: {
     flex: 1,
@@ -335,6 +436,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  deleteButtonText: {
+    fontSize: 20,
   },
   loadingText: {
     marginTop: 12,
@@ -450,6 +558,26 @@ const styles = StyleSheet.create({
     // backgroundColor set dynamically from colors.tint
   },
   createModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmMessage: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  confirmDetail: {
+    fontSize: 14,
+    opacity: 0.7,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  deleteModalButton: {
+    backgroundColor: '#f44336',
+  },
+  deleteModalButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

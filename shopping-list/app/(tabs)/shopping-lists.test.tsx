@@ -18,6 +18,12 @@ jest.mock('@/hooks/use-shopping-lists', () => ({
     isSuccess: false,
     reset: jest.fn(),
   })),
+  useDeleteShoppingList: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+  })),
 }));
 
 const mockUseShoppingLists = useShoppingLists as jest.MockedFunction<typeof useShoppingLists>;
