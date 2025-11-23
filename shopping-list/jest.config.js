@@ -22,4 +22,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testEnvironment: 'node',
+  // Force Jest to exit after tests complete to prevent hanging from React Query's background operations
+  forceExit: true,
 };

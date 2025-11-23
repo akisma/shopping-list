@@ -9,6 +9,8 @@ import type {
   ShoppingListWithItems,
   CreateShoppingListRequest,
   UpdateShoppingListRequest,
+  CreateItemRequest,
+  UpdateItemRequest,
 } from '@/types/api';
 
 // Query keys for cache management
@@ -101,6 +103,56 @@ export function useSendShoppingList() {
     onSuccess: (_, variables) => {
       // Invalidate specific list and all lists
       queryClient.invalidateQueries({ queryKey: shoppingListKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
+    },
+  });
+}
+
+/**
+ * Create new item in shopping list
+ */
+export function useCreateItem(listId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateItemRequest) => shoppingListsApi.createItem(listId, data),
+    onSuccess: () => {
+      // Invalidate the specific list detail to refetch with new item
+      queryClient.invalidateQueries({ queryKey: shoppingListKeys.detail(listId) });
+      // Also invalidate all lists to update item counts
+      queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
+    },
+  });
+}
+
+/**
+ * Update item in shopping list
+ */
+export function useUpdateItem(listId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ itemId, data }: { itemId: string; data: UpdateItemRequest }) =>
+      shoppingListsApi.updateItem(listId, itemId, data),
+    onSuccess: () => {
+      // Invalidate the specific list detail to refetch with updated item
+      queryClient.invalidateQueries({ queryKey: shoppingListKeys.detail(listId) });
+    },
+  });
+}
+
+/**
+ * Delete item from shopping list
+ */
+export function useDeleteItem(listId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (itemId: string) => shoppingListsApi.deleteItem(listId, itemId),
+    onSuccess: () => {
+      // Invalidate the specific list detail to refetch without deleted item
+      queryClient.invalidateQueries({ queryKey: shoppingListKeys.detail(listId) });
+      // Also invalidate all lists to update item counts
       queryClient.invalidateQueries({ queryKey: shoppingListKeys.all });
     },
   });

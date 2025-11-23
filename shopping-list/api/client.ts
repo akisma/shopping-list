@@ -12,6 +12,9 @@ import type {
   UpdateShoppingListRequest,
   SendShoppingListRequest,
   GetAllListsResponse,
+  ShoppingListItem,
+  CreateItemRequest,
+  UpdateItemRequest,
 } from '@/types/api';
 
 // Create axios instance with default config
@@ -94,5 +97,38 @@ export const shoppingListsApi = {
       request
     );
     return response.data;
+  },
+
+  /**
+   * Create new item in shopping list
+   */
+  async createItem(listId: string, data: CreateItemRequest): Promise<ShoppingListItem> {
+    const response = await apiClient.post<ShoppingListItem>(
+      ENDPOINTS.LIST_ITEMS(listId),
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Update item in shopping list
+   */
+  async updateItem(
+    listId: string,
+    itemId: string,
+    data: UpdateItemRequest
+  ): Promise<ShoppingListItem> {
+    const response = await apiClient.put<ShoppingListItem>(
+      ENDPOINTS.LIST_ITEM_BY_ID(listId, itemId),
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete item from shopping list
+   */
+  async deleteItem(listId: string, itemId: string): Promise<void> {
+    await apiClient.delete(ENDPOINTS.LIST_ITEM_BY_ID(listId, itemId));
   },
 };

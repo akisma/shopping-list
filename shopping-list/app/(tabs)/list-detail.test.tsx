@@ -25,6 +25,12 @@ jest.mock('expo-router', () => ({
 // Mock the hooks
 jest.mock('@/hooks/use-shopping-lists', () => ({
   useShoppingListDetail: jest.fn(),
+  useCreateItem: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    reset: jest.fn(),
+  })),
 }));
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typeof useLocalSearchParams>;
