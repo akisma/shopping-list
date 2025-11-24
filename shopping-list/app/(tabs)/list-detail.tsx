@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useShoppingListDetail, useCreateItem, useDeleteItem, useUpdateItem } from '@/hooks/use-shopping-lists';
+import { useShoppingListDetail, useCreateItem, useDeleteItem, useUpdateItem, useSendShoppingList } from '@/hooks/use-shopping-lists';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
@@ -22,6 +22,7 @@ import { ItemFormModal, type ItemFormData } from '@/components/ui/item-form-moda
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ShoppingListItem } from '@/types/api';
+import { Alert } from 'react-native';
 
 export default function ListDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,10 +34,14 @@ export default function ListDetailScreen() {
   const createItem = useCreateItem(id!);
   const deleteItem = useDeleteItem(id!);
   const updateItem = useUpdateItem(id!);
+  const sendShoppingList = useSendShoppingList();
 
   // Create item modal state
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [validationError, setValidationError] = useState('');
+
+  // Send list modal state
+  const [isSendModalVisible, setIsSendModalVisible] = useState(false);
 
   // Edit item modal state
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -134,6 +139,31 @@ export default function ListDetailScreen() {
         setDeleteError('Failed to delete item. Please try again.');
       },
     });
+  };
+
+  const openSendModal = () => {
+    setIsSendModalVisible(true);
+    sendShoppingList.reset();
+  };
+
+  const closeSendModal = () => {
+    setIsSendModalVisible(false);
+    sendShoppingList.reset();
+  };
+
+  const handleSendList = () => {
+    sendShoppingList.mutate(
+      { id: id!, status: 'sent' },
+      {
+        onSuccess: () => {
+          closeSendModal();
+          Alert.alert(
+            'List Sent!',
+            'Your shopping list has been sent to the manager.'
+          );
+        },
+      }
+    );
   };
 
   // Loading State
@@ -244,15 +274,59 @@ export default function ListDetailScreen() {
     </View>
   );
 
+  // Determine if send button should be shown
+  const canSendList = list.items.length > 0 && list.status === 'active';
+
+  // Get status badge details
+  const getStatusBadgeInfo = () => {
+    switch (list.status) {
+      case 'sent':
+        return { text: 'Sent to Manager', color: '#4CAF50' };
+      case 'completed':
+        return { text: 'Completed', color: '#9E9E9E' };
+      case 'active':
+      default:
+        return { text: 'Active', color: '#2196F3' };
+    }
+  };
+
+  const statusBadgeInfo = getStatusBadgeInfo();
+
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: list.name }} />
+      
+      {/* Status Badge */}
+      <View style={[styles.statusBadge, { backgroundColor: statusBadgeInfo.color }]} testID="status-badge">
+        <Text style={styles.statusBadgeText}>{statusBadgeInfo.text}</Text>
+      </View>
+
+      {/* Error message for send */}
+      {sendShoppingList.isError && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Failed to send list. Please try again.</Text>
+        </View>
+      )}
+
       <FlatList
         data={list.items}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContent, { paddingTop: insets.top }]}
+        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 50 }]}
       />
+      
+      {/* Send to Manager Button (only show if list has items and is active) */}
+      {canSendList && (
+        <TouchableOpacity
+          style={[styles.sendButton, { backgroundColor: '#4CAF50' }]}
+          onPress={openSendModal}
+          activeOpacity={0.7}
+          testID="send-to-manager-button"
+        >
+          <Text style={styles.sendButtonText}>📤 Send to Manager</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity
         style={[styles.fabButton, { backgroundColor: colors.tint }]}
         onPress={openCreateModal}
@@ -302,6 +376,20 @@ export default function ListDetailScreen() {
         confirmTestID="confirm-delete-button"
         cancelTestID="cancel-delete-button"
         errorTestID="delete-error"
+      />
+
+      {/* Send List Confirmation Modal */}
+      <ConfirmationModal
+        visible={isSendModalVisible}
+        title="Send to Manager?"
+        message={`Send "${list.name}" to the manager for ordering?`}
+        confirmText="Send"
+        onConfirm={handleSendList}
+        onCancel={closeSendModal}
+        isLoading={sendShoppingList.isPending}
+        error={sendShoppingList.isError ? 'Failed to send list. Please try again.' : null}
+        confirmTestID="confirm-send-button"
+        cancelTestID="cancel-send-button"
       />
     </ThemedView>
   );
@@ -443,5 +531,52 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     fontSize: 20,
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 50,
+    borderRadius: 8,
+  },
+  errorText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  sendButton: {
+    position: 'absolute',
+    left: 16,
+    bottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    elevation: 4,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    minHeight: 44,
+  },
+  sendButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

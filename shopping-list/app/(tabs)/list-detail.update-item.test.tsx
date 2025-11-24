@@ -18,14 +18,16 @@ jest.mock('@/hooks/use-shopping-lists', () => ({
   useCreateItem: jest.fn(),
   useDeleteItem: jest.fn(),
   useUpdateItem: jest.fn(),
+  useSendShoppingList: jest.fn(),
 }));
 
-import { useShoppingListDetail, useCreateItem, useDeleteItem, useUpdateItem } from '@/hooks/use-shopping-lists';
+import { useShoppingListDetail, useCreateItem, useDeleteItem, useUpdateItem, useSendShoppingList } from '@/hooks/use-shopping-lists';
 
 const mockUseShoppingListDetail = useShoppingListDetail as jest.MockedFunction<typeof useShoppingListDetail>;
 const mockUseCreateItem = useCreateItem as jest.MockedFunction<typeof useCreateItem>;
 const mockUseDeleteItem = useDeleteItem as jest.MockedFunction<typeof useDeleteItem>;
 const mockUseUpdateItem = useUpdateItem as jest.MockedFunction<typeof useUpdateItem>;
+const mockUseSendShoppingList = useSendShoppingList as jest.MockedFunction<typeof useSendShoppingList>;
 
 describe('ListDetailScreen - Update Item (Phase 4C)', () => {
   let queryClient: QueryClient;
@@ -61,6 +63,14 @@ describe('ListDetailScreen - Update Item (Phase 4C)', () => {
     } as any);
 
     mockUseUpdateItem.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      reset: jest.fn(),
+    } as any);
+
+    mockUseSendShoppingList.mockReturnValue({
       mutate: jest.fn(),
       isPending: false,
       isError: false,
