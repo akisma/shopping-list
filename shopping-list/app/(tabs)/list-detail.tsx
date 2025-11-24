@@ -11,6 +11,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +23,8 @@ import { ItemFormModal, type ItemFormData } from '@/components/ui/item-form-moda
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ShoppingListItem } from '@/types/api';
-import { Alert } from 'react-native';
+import { VoiceStatusIndicator } from '@/components/VoiceStatusIndicator';
+import { VoiceActivationBanner } from '@/components/VoiceActivationBanner';
 
 export default function ListDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -51,6 +53,32 @@ export default function ListDetailScreen() {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<ShoppingListItem | null>(null);
   const [deleteError, setDeleteError] = useState('');
+
+  // Voice activation state (stub - will be functional in Task 4)
+  const [voiceActivationEnabled] = useState(false);
+
+  const handleVoicePress = () => {
+    Alert.alert(
+      'Voice Commands Coming Soon',
+      'Voice-powered item adding will be available in the next update. Say "Hey Shoppy, add tomatoes" to get started!',
+      [{ text: 'OK' }]
+    );
+  };
+
+  // Get status badge details
+  const getStatusBadgeInfo = () => {
+    if (!list) return { text: 'Active', color: '#2196F3' };
+    
+    switch (list.status) {
+      case 'sent':
+        return { text: 'Sent to Manager', color: '#4CAF50' };
+      case 'completed':
+        return { text: 'Completed', color: '#9E9E9E' };
+      case 'active':
+      default:
+        return { text: 'Active', color: '#2196F3' };
+    }
+  };
 
   const openCreateModal = () => {
     setIsCreateModalVisible(true);
@@ -213,6 +241,20 @@ export default function ListDetailScreen() {
     return (
       <ThemedView style={styles.container}>
         <Stack.Screen options={{ title: list?.name || 'List' }} />
+        
+        {/* Voice Activation Banner */}
+        <VoiceActivationBanner visible={voiceActivationEnabled} />
+        
+        {/* Header with Voice Button and Status Badge */}
+        {list && (
+          <View style={styles.header}>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusBadgeInfo().color }]} testID="status-badge">
+              <Text style={styles.statusBadgeText}>{getStatusBadgeInfo().text}</Text>
+            </View>
+            <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+          </View>
+        )}
+        
         <View style={styles.centerContainer}>
           <ThemedText style={styles.emptyTitle}>📝</ThemedText>
           <ThemedText style={styles.emptyMessage}>No items yet</ThemedText>
@@ -277,28 +319,21 @@ export default function ListDetailScreen() {
   // Determine if send button should be shown
   const canSendList = list.items.length > 0 && list.status === 'active';
 
-  // Get status badge details
-  const getStatusBadgeInfo = () => {
-    switch (list.status) {
-      case 'sent':
-        return { text: 'Sent to Manager', color: '#4CAF50' };
-      case 'completed':
-        return { text: 'Completed', color: '#9E9E9E' };
-      case 'active':
-      default:
-        return { text: 'Active', color: '#2196F3' };
-    }
-  };
-
   const statusBadgeInfo = getStatusBadgeInfo();
 
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: list.name }} />
       
-      {/* Status Badge */}
-      <View style={[styles.statusBadge, { backgroundColor: statusBadgeInfo.color }]} testID="status-badge">
-        <Text style={styles.statusBadgeText}>{statusBadgeInfo.text}</Text>
+      {/* Voice Activation Banner */}
+      <VoiceActivationBanner visible={voiceActivationEnabled} />
+      
+      {/* Header with Voice Button and Status Badge */}
+      <View style={styles.header}>
+        <View style={[styles.statusBadge, { backgroundColor: statusBadgeInfo.color }]} testID="status-badge">
+          <Text style={styles.statusBadgeText}>{statusBadgeInfo.text}</Text>
+        </View>
+        <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
       </View>
 
       {/* Error message for send */}
@@ -403,7 +438,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 8,
   },
   loadingText: {
     marginTop: 12,

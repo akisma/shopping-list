@@ -237,4 +237,42 @@ describe('ShoppingListsScreen', () => {
       expect(screen.getByTestId('create-list-button')).toBeTruthy();
     });
   });
+
+  describe('voice features (Phase 6 - Stubs)', () => {
+    beforeEach(() => {
+      mockUseShoppingLists.mockReturnValue({
+        data: [],
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      } as any);
+    });
+
+    it('renders voice button in header', () => {
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByTestId('voice-status-indicator')).toBeTruthy();
+    });
+
+    it('shows "Coming Soon" alert when voice button is pressed', () => {
+      const mockAlert = jest.spyOn(require('react-native').Alert, 'alert');
+      
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      const voiceButton = screen.getByTestId('voice-status-indicator');
+      require('@testing-library/react-native').fireEvent.press(voiceButton);
+
+      expect(mockAlert).toHaveBeenCalledWith(
+        'Voice Commands Coming Soon',
+        'Voice-powered list creation will be available in the next update. Say "Hey Shoppy" to get started!',
+        expect.any(Array)
+      );
+    });
+
+    it('does not show voice activation banner by default', () => {
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      expect(screen.queryByTestId('voice-activation-banner')).toBeNull();
+    });
+  });
 });

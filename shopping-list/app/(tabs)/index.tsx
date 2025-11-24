@@ -15,12 +15,15 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useShoppingLists, useCreateShoppingList, useDeleteShoppingList } from '@/hooks/use-shopping-lists';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
+import { VoiceStatusIndicator } from '@/components/VoiceStatusIndicator';
+import { VoiceActivationBanner } from '@/components/VoiceActivationBanner';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ShoppingListWithCount } from '@/types/api';
@@ -42,6 +45,18 @@ export default function ShoppingListsScreen() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [listToDelete, setListToDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleteError, setDeleteError] = useState('');
+
+  // Voice activation state (stub for Phase 6)
+  const [voiceActivationEnabled] = useState(false);
+
+  // Handle voice button press
+  const handleVoicePress = () => {
+    Alert.alert(
+      'Voice Commands Coming Soon',
+      'Voice-powered list creation will be available in the next update. Say "Hey Shoppy" to get started!',
+      [{ text: 'OK' }]
+    );
+  };
 
   // Handle create list
   const handleCreateList = () => {
@@ -167,17 +182,35 @@ export default function ShoppingListsScreen() {
   // Empty State
   if (!lists || lists.length === 0) {
     return (
-      <ThemedView style={styles.centerContainer}>
-        <ThemedText style={styles.emptyTitle}>No Shopping Lists</ThemedText>
-        <ThemedText style={styles.emptyMessage}>
-          Create your first list to get started
-        </ThemedText>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.tint }]}
-          onPress={openCreateModal}
-        >
-          <Text style={styles.buttonText}>Create List</Text>
-        </TouchableOpacity>
+      <ThemedView style={styles.container}>
+        <VoiceActivationBanner visible={voiceActivationEnabled} />
+        <View style={styles.header}>
+          <ThemedText type="title" style={styles.headerTitle}>
+            Shopping Lists
+          </ThemedText>
+          <View style={styles.headerActions}>
+            <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+            <TouchableOpacity
+              testID="create-list-button"
+              style={[styles.createButton, { backgroundColor: colors.tint }]}
+              onPress={openCreateModal}
+            >
+              <Text style={styles.createButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.centerContainer}>
+          <ThemedText style={styles.emptyTitle}>No Shopping Lists</ThemedText>
+          <ThemedText style={styles.emptyMessage}>
+            Create your first list to get started
+          </ThemedText>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: colors.tint }]}
+            onPress={openCreateModal}
+          >
+            <Text style={styles.buttonText}>Create List</Text>
+          </TouchableOpacity>
+        </View>
       </ThemedView>
     );
   }
@@ -216,17 +249,21 @@ export default function ShoppingListsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <VoiceActivationBanner visible={voiceActivationEnabled} />
       <View style={styles.header}>
         <ThemedText type="title" style={styles.headerTitle}>
           Shopping Lists
         </ThemedText>
-        <TouchableOpacity
-          testID="create-list-button"
-          style={[styles.createButton, { backgroundColor: colors.tint }]}
-          onPress={openCreateModal}
-        >
-          <Text style={styles.createButtonText}>+</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+          <TouchableOpacity
+            testID="create-list-button"
+            style={[styles.createButton, { backgroundColor: colors.tint }]}
+            onPress={openCreateModal}
+          >
+            <Text style={styles.createButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -348,6 +385,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   createButton: {
     width: 44,

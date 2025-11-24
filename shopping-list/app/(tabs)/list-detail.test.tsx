@@ -348,4 +348,50 @@ describe('ListDetailScreen', () => {
       expect(screen.getByTestId('add-item-button')).toBeTruthy();
     });
   });
+
+  describe('voice features (Phase 6 - Stubs)', () => {
+    beforeEach(() => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'test-id' });
+      (useShoppingListDetail as jest.Mock).mockReturnValue({
+        data: {
+          id: 'test-id',
+          name: 'Test List',
+          status: 'active',
+          items: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      });
+    });
+
+    it('renders voice button in header', () => {
+      render(<ListDetailScreen />, { wrapper: createWrapper() });
+
+      expect(screen.getByTestId('voice-status-indicator')).toBeTruthy();
+    });
+
+    it('shows "Coming Soon" alert when voice button is pressed', () => {
+      const mockAlert = jest.spyOn(require('react-native').Alert, 'alert');
+      
+      render(<ListDetailScreen />, { wrapper: createWrapper() });
+
+      const voiceButton = screen.getByTestId('voice-status-indicator');
+      require('@testing-library/react-native').fireEvent.press(voiceButton);
+
+      expect(mockAlert).toHaveBeenCalledWith(
+        'Voice Commands Coming Soon',
+        'Voice-powered item adding will be available in the next update. Say "Hey Shoppy, add tomatoes" to get started!',
+        expect.any(Array)
+      );
+    });
+
+    it('does not show voice activation banner by default', () => {
+      render(<ListDetailScreen />, { wrapper: createWrapper() });
+
+      expect(screen.queryByTestId('voice-activation-banner')).toBeNull();
+    });
+  });
 });
