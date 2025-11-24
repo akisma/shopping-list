@@ -36,6 +36,12 @@ jest.mock('@/hooks/use-shopping-lists', () => ({
     isPending: false,
     isError: false,
   })),
+  useUpdateItem: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    reset: jest.fn(),
+  })),
 }));
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typeof useLocalSearchParams>;

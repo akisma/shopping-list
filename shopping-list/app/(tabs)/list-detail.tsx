@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useShoppingListDetail, useCreateItem, useDeleteItem } from '@/hooks/use-shopping-lists';
+import { useShoppingListDetail, useCreateItem, useDeleteItem, useUpdateItem } from '@/hooks/use-shopping-lists';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
@@ -32,10 +32,15 @@ export default function ListDetailScreen() {
   const { data: list, isLoading, isError, error, refetch } = useShoppingListDetail(id!);
   const createItem = useCreateItem(id!);
   const deleteItem = useDeleteItem(id!);
+  const updateItem = useUpdateItem(id!);
 
   // Create item modal state
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [validationError, setValidationError] = useState('');
+
+  // Edit item modal state
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<ShoppingListItem | null>(null);
 
   // Delete item modal state
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
@@ -67,6 +72,43 @@ export default function ListDetailScreen() {
         closeCreateModal();
       },
     });
+  };
+
+  const openEditModal = (item: ShoppingListItem) => {
+    setItemToEdit(item);
+    setIsEditModalVisible(true);
+    setValidationError('');
+    updateItem.reset();
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalVisible(false);
+    setItemToEdit(null);
+    setValidationError('');
+    updateItem.reset();
+  };
+
+  const handleUpdateItem = (data: ItemFormData) => {
+    // Validate name
+    if (!data.name.trim()) {
+      setValidationError('Item name is required');
+      return;
+    }
+
+    if (!itemToEdit) return;
+
+    // Update item
+    updateItem.mutate(
+      {
+        itemId: itemToEdit.id,
+        data,
+      },
+      {
+        onSuccess: () => {
+          closeEditModal();
+        },
+      }
+    );
   };
 
   const openDeleteModal = (item: ShoppingListItem) => {
@@ -183,13 +225,22 @@ export default function ListDetailScreen() {
           <ThemedText style={styles.itemNotes}>{item.notes}</ThemedText>
         )}
       </View>
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => openDeleteModal(item)}
-        testID={`delete-item-button-${item.id}`}
-      >
-        <Text style={styles.deleteButtonText}>🗑️</Text>
-      </TouchableOpacity>
+      <View style={styles.itemActions}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => openEditModal(item)}
+          testID={`edit-item-button-${item.id}`}
+        >
+          <Text style={styles.editButtonText}>✏️</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => openDeleteModal(item)}
+          testID={`delete-item-button-${item.id}`}
+        >
+          <Text style={styles.deleteButtonText}>🗑️</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -219,6 +270,22 @@ export default function ListDetailScreen() {
         onCancel={closeCreateModal}
         isLoading={createItem.isPending}
         error={createItem.isError ? 'Failed to add item. Please try again.' : null}
+        validationError={validationError}
+      />
+
+      {/* Edit Item Modal */}
+      <ItemFormModal
+        visible={isEditModalVisible}
+        mode="edit"
+        initialData={itemToEdit ? {
+          name: itemToEdit.name,
+          quantity: itemToEdit.quantity || '',
+          notes: itemToEdit.notes || '',
+        } : undefined}
+        onSave={handleUpdateItem}
+        onCancel={closeEditModal}
+        isLoading={updateItem.isPending}
+        error={updateItem.isError ? 'Failed to update item. Please try again.' : null}
         validationError={validationError}
       />
 
@@ -313,6 +380,8 @@ const styles = StyleSheet.create({
     paddingBottom: 80, // Space for FAB
   },
   itemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
     padding: 16,
@@ -335,6 +404,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.6,
     fontStyle: 'italic',
+  },
+  itemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButton: {
+    padding: 8,
+    marginRight: 4,
+  },
+  editButtonText: {
+    fontSize: 20,
   },
   fabButton: {
     position: 'absolute',

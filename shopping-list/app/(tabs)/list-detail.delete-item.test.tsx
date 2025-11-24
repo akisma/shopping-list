@@ -99,6 +99,16 @@ describe('ListDetailScreen - Delete Item', () => {
       isError: false,
       error: null,
     } as any);
+
+    // Mock useUpdateItem
+    jest.spyOn(useShoppingListsModule, 'useUpdateItem').mockReturnValue({
+      mutate: jest.fn(),
+      mutateAsync: jest.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      reset: jest.fn(),
+    } as any);
   });
 
   describe('Delete Button Visibility', () => {
