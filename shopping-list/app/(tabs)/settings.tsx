@@ -1,52 +1,113 @@
-import { StyleSheet } from 'react-native';
+/**
+ * Settings Screen (TDD - GREEN Phase)
+ * Voice features configuration
+ */
 
-import { Collapsible } from '@/components/ui/collapsible';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Switch, Alert } from 'react-native';
 
-export default function TabTwoScreen() {
+export default function SettingsScreen() {
+  const [voiceActivationEnabled] = React.useState(false);
+  const [voiceButtonsEnabled] = React.useState(true);
+
+  const handleVoiceActivationToggle = (value: boolean) => {
+    Alert.alert(
+      'Coming in Task 4',
+      'Voice activation with "Hey Shoppy" wake word will be available when we integrate OpenAI Whisper and GPT-4.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleVoiceButtonToggle = (value: boolean) => {
+    Alert.alert(
+      'Coming Soon',
+      'Voice button functionality will be available in the next update. We\'re building the voice recognition features!',
+      [{ text: 'OK' }]
+    );
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#3d7bccff', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Settings
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This will eventually be the settings page.</ThemedText>
-      <Collapsible title="Data">
-        <ThemedText>
-          something to help clear the list
-        </ThemedText>
-      </Collapsible>
-    </ParallaxScrollView>
+    <ScrollView style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader}>Voice Features</Text>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingTitle}>Enable Voice Activation</Text>
+            <Text style={styles.settingDescription}>
+              Say &ldquo;Hey Shoppy&rdquo; to activate
+            </Text>
+            <Text style={styles.comingSoon}>(Coming in Task 4)</Text>
+          </View>
+          <Switch
+            testID="voice-activation-toggle"
+            value={voiceActivationEnabled}
+            onValueChange={handleVoiceActivationToggle}
+            disabled={true}
+          />
+        </View>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingTitle}>Voice Button on Lists</Text>
+            <Text style={styles.settingDescription}>
+              Tap microphone button
+            </Text>
+            <Text style={styles.comingSoon}>(Coming Soon)</Text>
+          </View>
+          <Switch
+            testID="voice-button-toggle"
+            value={voiceButtonsEnabled}
+            onValueChange={handleVoiceButtonToggle}
+            disabled={true}
+          />
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#3578e3ff',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  titleContainer: {
+  section: {
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#333',
+  },
+  settingRow: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  comingSoon: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
   },
 });

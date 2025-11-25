@@ -77,3 +77,17 @@ jest.mock('expo-image', () => ({
 
 // Set up global test timeout
 jest.setTimeout(10000);
+
+// Use fake timers by default to prevent hanging
+beforeEach(() => {
+  jest.useFakeTimers();
+});
+
+// Clean up after each test to prevent Jest from hanging
+afterEach(() => {
+  // Clear all timers (including React Query's background refetch timers)
+  jest.clearAllTimers();
+  
+  // Clean up any remaining async operations
+  jest.useRealTimers();
+});

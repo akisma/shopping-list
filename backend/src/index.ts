@@ -23,16 +23,18 @@ import { join } from 'path';
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const DB_PATH = process.env.DATABASE_PATH || join(__dirname, '../data/shopping-list.db');
-const CORS_ORIGINS = process.env.CORS_ORIGINS?.split(',') || [
-  'http://localhost:8081',
-  'http://localhost:19000',
-  'http://localhost:19006'
-];
 
-// Logger
+// CORS origins - allow all in development, restrict in production
+const CORS_ORIGINS = NODE_ENV === 'production' 
+  ? (process.env.CORS_ORIGINS?.split(',') || [])
+  : true; // Allow all origins in development
+
+// Logger - use basic pino to avoid pino-pretty blocking in watch mode
+// Set PRETTY_LOGS=true environment variable if you want colored output
+const usePrettyLogs = process.env.PRETTY_LOGS === 'true';
 const logger = pino({
   level: NODE_ENV === 'production' ? 'info' : 'debug',
-  transport: NODE_ENV !== 'production' ? {
+  transport: usePrettyLogs && NODE_ENV !== 'production' ? {
     target: 'pino-pretty',
     options: {
       colorize: true,

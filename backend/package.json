@@ -4,7 +4,8 @@
   "description": "Backend API for AI-powered Shopping List",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "NODE_ENV=development tsx watch --clear-screen=false src/index.ts",
+    "dev:simple": "NODE_ENV=development tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "jest",

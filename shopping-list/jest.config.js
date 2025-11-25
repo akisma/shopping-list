@@ -3,7 +3,10 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)'
   ],
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFilesAfterEnv: [
+    '<rootDir>/jest.setup.js',
+    '<rootDir>/__tests__/setup.ts'
+  ],
   testMatch: [
     '**/*.test.ts?(x)',
     '**/*.spec.ts?(x)'
@@ -22,4 +25,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testEnvironment: 'node',
+  // Force Jest to exit after tests complete to prevent hanging from React Query's background operations
+  forceExit: true,
 };
