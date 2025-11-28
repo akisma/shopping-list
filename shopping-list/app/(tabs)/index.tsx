@@ -59,8 +59,8 @@ export default function ShoppingListsScreen() {
   const handleVoice = async (audioBlob: string) => {
     const result = await handleVoiceCommand(audioBlob);
     
-    // If voice command created a list, refetch to show it
-    if (result.success && result.action === 'create_list') {
+    // If voice command created a list or added an item, refetch to show updated counts
+    if (result.success && (result.action === 'create_list' || result.action === 'add_item')) {
       await refetch();
     }
   };

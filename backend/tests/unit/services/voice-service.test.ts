@@ -48,6 +48,11 @@ describe('VoiceService', () => {
     mockListService = new ShoppingListService({} as any) as jest.Mocked<ShoppingListService>;
     mockItemService = new ShoppingListItemService({} as any) as jest.Mocked<ShoppingListItemService>;
 
+    // Setup default mocks for pending action methods
+    mockSessionManager.getPendingAction = jest.fn().mockReturnValue(undefined);
+    mockSessionManager.setPendingAction = jest.fn();
+    mockSessionManager.clearPendingAction = jest.fn();
+
     voiceService = new VoiceService(
       mockIntentParser,
       mockSessionManager,
@@ -150,13 +155,19 @@ describe('VoiceService', () => {
         sessionId: 'session-123',
       });
 
-      expect(result.success).toBe(true);
-      expect(result.action).toBe('add_item');
+      // With the new quantity follow-up feature, adding without quantity asks for clarification
+      expect(result.success).toBe(false);
+      expect(result.action).toBe('clarification');
       expect(result.sessionId).toBe('session-123');
-      expect(result.ttsText).toContain('added tomatoes');
+      expect(result.ttsText).toBe('How much would you like me to add?');
       expect(mockIntentParser.parseIntent).toHaveBeenCalledWith('add tomatoes', {
         currentListId: 'list-123',
         lastCommands: [],
+      });
+      // Verify pending action was set
+      expect(mockSessionManager.setPendingAction).toHaveBeenCalledWith('session-123', 'add_item', {
+        itemName: 'tomatoes',
+        listId: 'list-123',
       });
     });
 

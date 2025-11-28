@@ -95,6 +95,52 @@ export class SessionManager {
   }
 
   /**
+   * Set pending action for session (for multi-turn interactions)
+   * @param sessionId - Session ID to update
+   * @param action - Action name
+   * @param entities - Partial entities from the incomplete request
+   */
+  setPendingAction(sessionId: string, action: string, entities: Record<string, any>): void {
+    const session = this.getSession(sessionId);
+    
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    session.pendingAction = { action, entities };
+    session.lastActivityAt = new Date();
+
+    this.sessions.set(sessionId, session);
+  }
+
+  /**
+   * Get pending action for session
+   * @param sessionId - Session ID to check
+   * @returns Pending action or undefined
+   */
+  getPendingAction(sessionId: string): { action: string; entities: Record<string, any> } | undefined {
+    const session = this.getSession(sessionId);
+    return session?.pendingAction;
+  }
+
+  /**
+   * Clear pending action for session
+   * @param sessionId - Session ID to update
+   */
+  clearPendingAction(sessionId: string): void {
+    const session = this.getSession(sessionId);
+    
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    session.pendingAction = undefined;
+    session.lastActivityAt = new Date();
+
+    this.sessions.set(sessionId, session);
+  }
+
+  /**
    * Delete a session
    * @param sessionId - Session ID to delete
    * @returns True if deleted, false if not found

@@ -8,7 +8,7 @@ import { IntentParser } from './intent-parser';
 import { SessionManager } from './session-manager';
 import { ShoppingListService } from './shopping-list.service';
 import { ShoppingListItemService } from './shopping-list-item.service';
-import { VoiceCommandRequest, VoiceCommandResponse, VoiceCommand } from '../types';
+import { VoiceCommandRequest, VoiceCommandResponse, VoiceCommand, VoiceSession } from '../types';
 
 export class VoiceService {
   private client;
@@ -27,63 +27,151 @@ export class VoiceService {
    */
   async processVoiceCommand(request: VoiceCommandRequest): Promise<VoiceCommandResponse> {
     try {
-      // Step 1: Get or create session
-      let session = request.sessionId
-        ? this.sessionManager.getSession(request.sessionId)
-        : null;
-
-      if (!session) {
-        session = this.sessionManager.createSession();
-      }
-
-      // Step 2: Transcribe audio with Whisper
+      const session = this.getOrCreateSession(request.sessionId);
       const transcript = await this.transcribeAudio(request.audioBlob);
 
-      // Step 3: Parse intent with GPT-4
-      const context = {
-        currentListId: session.currentListId,
-        lastCommands: session.context,
-      };
-      const intent = await this.intentParser.parseIntent(transcript, context);
-
-      // Step 4: Handle clarification
-      if (intent.requiresClarification) {
-        return {
-          success: false,
-          action: intent.action === 'unknown' ? 'error' : intent.action,
-          ttsText: intent.clarificationQuestion || 'I need more information.',
-          sessionId: session.id,
-        };
+      // Check if user is responding to a pending multi-turn interaction
+      const pendingActionResult = await this.resolvePendingAction(session.id, transcript);
+      if (pendingActionResult) {
+        return { ...pendingActionResult, sessionId: session.id };
       }
 
-      // Step 5: Execute action
-      const result = await this.executeAction(intent, session.id);
+      // Parse user intent and execute action
+      const sessionContext = this.buildSessionContext(session);
+      const parsedIntent = await this.intentParser.parseIntent(transcript, sessionContext);
 
-      // Step 6: Update session context
-      const command: VoiceCommand = {
-        timestamp: new Date(),
-        transcript,
-        intent: intent.action,
-        action: intent.action,
-        result: result.data,
-      };
-      this.sessionManager.updateContext(session.id, command);
+      if (parsedIntent.requiresClarification) {
+        return this.createClarificationResponse(parsedIntent, session.id);
+      }
 
-      return {
-        ...result,
-        sessionId: session.id,
-      };
+      const actionResult = await this.executeAction(parsedIntent, session.id);
+      this.recordCommandInSession(session.id, transcript, parsedIntent.action, actionResult.data);
+
+      return { ...actionResult, sessionId: session.id };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      return {
-        success: false,
-        action: 'error',
-        ttsText: 'Sorry, I encountered an error processing your command.',
-        sessionId: request.sessionId || '',
-        error: errorMessage,
-      };
+      return this.createErrorResponse(request.sessionId, error);
     }
+  }
+
+  /**
+   * Get existing session or create new one
+   */
+  private getOrCreateSession(sessionId?: string): VoiceSession {
+    if (sessionId) {
+      const existingSession = this.sessionManager.getSession(sessionId);
+      if (existingSession) {
+        return existingSession;
+      }
+    }
+    return this.sessionManager.createSession();
+  }
+
+  /**
+   * Build context object for intent parsing
+   */
+  private buildSessionContext(session: VoiceSession) {
+    return {
+      currentListId: session.currentListId,
+      lastCommands: session.context,
+    };
+  }
+
+  /**
+   * Resolve pending multi-turn action if one exists
+   */
+  private async resolvePendingAction(
+    sessionId: string,
+    transcript: string
+  ): Promise<Omit<VoiceCommandResponse, 'sessionId'> | null> {
+    const pendingAction = this.sessionManager.getPendingAction(sessionId);
+    
+    if (pendingAction?.action === 'add_item') {
+      return await this.completePendingAddItem(sessionId, transcript, pendingAction.entities);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Complete a pending add_item action with the provided quantity
+   */
+  private async completePendingAddItem(
+    sessionId: string,
+    transcript: string,
+    pendingEntities: Record<string, any>
+  ): Promise<Omit<VoiceCommandResponse, 'sessionId'> | null> {
+    const session = this.sessionManager.getSession(sessionId);
+    if (!session) return null;
+
+    const sessionContext = this.buildSessionContext(session);
+    const parsedIntent = await this.intentParser.parseIntent(transcript, sessionContext);
+    
+    if (!parsedIntent.entities?.quantity) {
+      return null; // User didn't provide quantity, continue normal flow
+    }
+
+    const { itemName, listId } = pendingEntities;
+    const quantity = parsedIntent.entities.quantity;
+
+    const addedItem = this.itemService.add(listId, { name: itemName, quantity });
+    
+    this.sessionManager.clearPendingAction(sessionId);
+    this.recordCommandInSession(sessionId, transcript, 'add_item', {
+      itemId: addedItem.id,
+      itemName: addedItem.name,
+      quantity: addedItem.quantity,
+    });
+
+    return this.createAddItemSuccessResponse(addedItem, quantity, itemName);
+  }
+
+  /**
+   * Record a voice command in session context
+   */
+  private recordCommandInSession(
+    sessionId: string,
+    transcript: string,
+    actionName: string,
+    resultData: any
+  ): void {
+    const command: VoiceCommand = {
+      timestamp: new Date(),
+      transcript,
+      intent: actionName,
+      action: actionName,
+      result: resultData,
+    };
+    this.sessionManager.updateContext(sessionId, command);
+  }
+
+  /**
+   * Create clarification response
+   */
+  private createClarificationResponse(
+    parsedIntent: any,
+    sessionId: string
+  ): VoiceCommandResponse {
+    const action = parsedIntent.action === 'unknown' ? 'error' : 'clarification';
+    return {
+      success: false,
+      action,
+      ttsText: parsedIntent.clarificationQuestion || 'I need more information.',
+      sessionId,
+    };
+  }
+
+  /**
+   * Create error response
+   */
+  private createErrorResponse(sessionId: string | undefined, error: unknown): VoiceCommandResponse {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      success: false,
+      action: 'error',
+      ttsText: 'Sorry, I encountered an error processing your command.',
+      sessionId: sessionId || '',
+      error: errorMessage,
+    };
   }
 
   /**
@@ -170,51 +258,92 @@ export class VoiceService {
     const session = this.sessionManager.getSession(sessionId);
     
     if (!session?.currentListId) {
-      return {
-        success: false,
-        action: 'clarification',
-        ttsText: 'Which list would you like to add that to?',
-      };
+      return this.createClarificationResponse(
+        { action: 'add_item', clarificationQuestion: 'Which list would you like to add that to?' },
+        sessionId
+      );
     }
 
-    const itemName = intent.entities.itemName;
-    const quantity = intent.entities.quantity;
+    const { itemName, quantity } = intent.entities;
 
-    const item = this.itemService.add(session.currentListId, {
+    // If quantity is missing, ask for it and store pending action
+    if (!quantity) {
+      this.sessionManager.setPendingAction(sessionId, 'add_item', {
+        itemName,
+        listId: session.currentListId,
+      });
+
+      return this.createClarificationResponse(
+        { action: 'add_item', clarificationQuestion: 'How much would you like me to add?' },
+        sessionId
+      );
+    }
+
+    const addedItem = this.itemService.add(session.currentListId, {
       name: itemName,
-      quantity: quantity || '1',
+      quantity,
     });
 
-    const ttsText = quantity
-      ? `I've added ${quantity} ${itemName} to your list.`
-      : `I've added ${itemName} to your list.`;
+    return this.createAddItemSuccessResponse(addedItem, quantity, itemName);
+  }
 
+  /**
+   * Create success response for adding an item
+   */
+  private createAddItemSuccessResponse(
+    addedItem: any,
+    quantity: string,
+    itemName: string
+  ): Omit<VoiceCommandResponse, 'sessionId'> {
     return {
       success: true,
       action: 'add_item',
-      ttsText,
-      data: { itemId: item.id, itemName: item.name, quantity: item.quantity },
+      ttsText: `I've added ${quantity} ${itemName} to your list.`,
+      data: { 
+        itemId: addedItem.id, 
+        itemName: addedItem.name, 
+        quantity: addedItem.quantity 
+      },
     };
+  }
+
+  /**
+   * Validate that session has an active list, return clarification if not
+   */
+  private requireActiveList(
+    sessionId: string,
+    actionName: string,
+    clarificationMessage: string
+  ): { listId: string } | Omit<VoiceCommandResponse, 'sessionId'> {
+    const session = this.sessionManager.getSession(sessionId);
+    
+    if (!session?.currentListId) {
+      return this.createClarificationResponse(
+        { action: actionName, clarificationQuestion: clarificationMessage },
+        sessionId
+      );
+    }
+
+    return { listId: session.currentListId };
   }
 
   /**
    * Handle remove item action
    */
   private handleRemoveItem(intent: any, sessionId: string): Omit<VoiceCommandResponse, 'sessionId'> {
-    const session = this.sessionManager.getSession(sessionId);
+    const activeListOrError = this.requireActiveList(
+      sessionId,
+      'remove_item',
+      'Which list would you like to remove that from?'
+    );
     
-    if (!session?.currentListId) {
-      return {
-        success: false,
-        action: 'clarification',
-        ttsText: 'Which list would you like to remove that from?',
-      };
+    if ('ttsText' in activeListOrError) {
+      return activeListOrError;
     }
 
-    const itemName = intent.entities.itemName;
-
-    // Find item by name in current list
-    const list = this.listService.getById(session.currentListId);
+    const { itemName } = intent.entities;
+    const list = this.listService.getById(activeListOrError.listId);
+    
     if (!list) {
       return {
         success: false,
@@ -223,9 +352,11 @@ export class VoiceService {
       };
     }
 
-    const item = list.items.find((i: any) => i.name.toLowerCase() === itemName.toLowerCase());
+    const itemToRemove = list.items.find((i: any) => 
+      i.name.toLowerCase() === itemName.toLowerCase()
+    );
 
-    if (!item) {
+    if (!itemToRemove) {
       return {
         success: false,
         action: 'error',
@@ -233,13 +364,13 @@ export class VoiceService {
       };
     }
 
-    this.itemService.delete(session.currentListId, item.id);
+    this.itemService.delete(activeListOrError.listId, itemToRemove.id);
 
     return {
       success: true,
       action: 'remove_item',
       ttsText: `I've removed ${itemName} from your list.`,
-      data: { itemId: item.id, itemName: item.name },
+      data: { itemId: itemToRemove.id, itemName: itemToRemove.name },
     };
   }
 
@@ -247,14 +378,14 @@ export class VoiceService {
    * Handle send list action
    */
   private handleSendList(_intent: any, sessionId: string): Omit<VoiceCommandResponse, 'sessionId'> {
-    const session = this.sessionManager.getSession(sessionId);
+    const activeListOrError = this.requireActiveList(
+      sessionId,
+      'send_list',
+      'Which list would you like to send?'
+    );
     
-    if (!session?.currentListId) {
-      return {
-        success: false,
-        action: 'clarification',
-        ttsText: 'Which list would you like to send?',
-      };
+    if ('ttsText' in activeListOrError) {
+      return activeListOrError;
     }
 
     // In a real implementation, this would trigger the send flow
@@ -263,7 +394,7 @@ export class VoiceService {
       success: true,
       action: 'send_list',
       ttsText: 'Your list is ready to send. Please check your device to complete the action.',
-      data: { listId: session.currentListId },
+      data: { listId: activeListOrError.listId },
     };
   }
 

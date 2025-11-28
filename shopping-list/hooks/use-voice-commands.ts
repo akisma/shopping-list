@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { VoiceCommandService } from '@/services/voice-command-service';
 import { API_BASE_URL } from '@/constants/api';
+import { useTextToSpeech } from './use-text-to-speech';
 
 const voiceService = new VoiceCommandService(`${API_BASE_URL}/api/voice`);
 
@@ -9,55 +10,71 @@ export function useVoiceCommands() {
   const [processing, setProcessing] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
+  
+  // TTS integration
+  const { speak, isTtsEnabled, setTtsEnabled } = useTextToSpeech();
+
+  /**
+   * Display message to user via TTS or Alert
+   */
+  const announceToUser = useCallback(async (message: string, title: string = 'Voice Command') => {
+    if (isTtsEnabled) {
+      await speak(message);
+    } else {
+      Alert.alert(title, message, [{ text: 'OK' }]);
+    }
+  }, [isTtsEnabled, speak]);
 
   const handleVoiceCommand = useCallback(async (audioBlob: string) => {
     setProcessing(true);
     setLastResponse(null);
 
     try {
-      // Send voice command to backend
       const response = await voiceService.sendVoiceCommand(audioBlob, sessionId || undefined);
 
-      // Store session ID for context
+      // Update session context
       if (response.sessionId) {
         setSessionId(response.sessionId);
       }
 
-      // Store TTS text for display
+      // Store response text for display
       setLastResponse(response.ttsText);
 
-      // Show result to user
       if (response.success) {
-        Alert.alert('Voice Command', response.ttsText, [{ text: 'OK' }]);
+        await announceToUser(response.ttsText);
         
-        // Return action for caller to handle
         return {
           success: true,
           action: response.action,
           data: response.data,
           ttsText: response.ttsText,
         };
-      } else {
-        // Check if it's a clarification request (not an actual error)
-        if (response.action === 'clarification') {
-          Alert.alert('Voice Command', response.ttsText || 'Could you please clarify?', [{ text: 'OK' }]);
-          return {
-            success: false,
-            action: response.action,
-            ttsText: response.ttsText,
-          };
-        }
+      }
+
+      // Handle clarification requests
+      if (response.action === 'clarification') {
+        const clarificationMessage = response.ttsText || 'Could you please clarify?';
+        await announceToUser(clarificationMessage);
         
-        // Actual error
-        Alert.alert('Error', response.error || response.ttsText || 'Command failed', [{ text: 'OK' }]);
         return {
           success: false,
-          error: response.error || response.ttsText,
+          action: response.action,
+          ttsText: response.ttsText,
         };
       }
+
+      // Handle errors
+      const errorMessage = response.ttsText || response.error || 'Command failed';
+      await announceToUser(errorMessage, 'Error');
+      
+      return {
+        success: false,
+        error: response.error || response.ttsText,
+      };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to process voice command';
-      Alert.alert('Voice Command Error', errorMessage, [{ text: 'OK' }]);
+      await announceToUser(errorMessage, 'Voice Command Error');
+      
       return {
         success: false,
         error: errorMessage,
@@ -65,7 +82,7 @@ export function useVoiceCommands() {
     } finally {
       setProcessing(false);
     }
-  }, [sessionId]);
+  }, [sessionId, announceToUser]);
 
   const clearSession = useCallback(async () => {
     if (sessionId) {
@@ -84,5 +101,7 @@ export function useVoiceCommands() {
     processing,
     sessionId,
     lastResponse,
+    isTtsEnabled,
+    setTtsEnabled,
   };
 }

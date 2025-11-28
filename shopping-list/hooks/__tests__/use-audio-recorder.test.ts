@@ -19,6 +19,12 @@ const mockAudioRecorder = {
 
 jest.mock('expo-audio', () => ({
   useAudioRecorder: jest.fn(() => mockAudioRecorder),
+  useAudioRecorderState: jest.fn((recorder) => ({
+    isRecording: recorder?.isRecording || false,
+    durationMillis: 0,
+    mediaServicesDidReset: false,
+    url: null,
+  })),
   RecordingPresets: {
     HIGH_QUALITY: {
       android: {},
@@ -170,6 +176,15 @@ describe('useAudioRecorder', () => {
   describe('stopRecording', () => {
     it('should stop recording and return base64 audio', async () => {
       const { File } = require('expo-file-system');
+      const { useAudioRecorderState } = require('expo-audio');
+      
+      // Mock useAudioRecorderState to return valid recording data
+      (useAudioRecorderState as jest.Mock).mockReturnValue({
+        isRecording: true,
+        durationMillis: 5000, // 5 seconds - above minimum threshold
+        mediaServicesDidReset: false,
+        url: 'file:///path/to/recording.m4a',
+      });
       
       const { result } = renderHook(() => useAudioRecorder());
 
@@ -187,15 +202,16 @@ describe('useAudioRecorder', () => {
       });
 
       expect(mockAudioRecorder.stop).toHaveBeenCalled();
-      expect(mockAudioRecorder.getStatus).toHaveBeenCalled();
       expect(File).toHaveBeenCalledWith('file:///path/to/recording.m4a');
       expect(mockFile.base64).toHaveBeenCalled();
       expect(audioData).toBe('base64AudioData');
     });
 
     it('should return null when recording URI is not available', async () => {
-      mockAudioRecorder.getStatus.mockResolvedValue({
-        canRecord: true,
+      const { useAudioRecorderState } = require('expo-audio');
+      
+      // Mock useAudioRecorderState to return no URL
+      (useAudioRecorderState as jest.Mock).mockReturnValue({
         isRecording: false,
         durationMillis: 5000,
         mediaServicesDidReset: false,

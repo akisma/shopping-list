@@ -123,6 +123,10 @@ export interface VoiceSession {
   userId?: string;
   currentListId?: string;
   context: VoiceCommand[];
+  pendingAction?: {
+    action: string;
+    entities: Record<string, any>;
+  };
   createdAt: Date;
   lastActivityAt: Date;
 }
