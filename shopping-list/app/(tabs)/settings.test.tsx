@@ -36,10 +36,10 @@ describe('SettingsScreen', () => {
       expect(screen.getByText(/Say.*Hey Shoppy.*to activate/i)).toBeTruthy();
     });
 
-    it('shows "Coming in Task 4" message for voice activation', () => {
+    it('shows "Unavailable" message when context is not available', () => {
       render(<SettingsScreen />);
 
-      expect(screen.getByText(/Coming in Task 4/i)).toBeTruthy();
+      expect(screen.getByText(/Unavailable/i)).toBeTruthy();
     });
 
     it('renders voice button toggle', () => {
@@ -64,15 +64,15 @@ describe('SettingsScreen', () => {
       expect(toggle.props.disabled).toBe(true);
     });
 
-    it('shows alert when voice activation toggle is pressed', () => {
+    it('shows alert when voice activation toggle is pressed without context', () => {
       render(<SettingsScreen />);
 
       const toggle = screen.getByTestId('voice-activation-toggle');
       fireEvent(toggle, 'onValueChange', true);
 
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Coming in Task 4',
-        'Voice activation with "Hey Shoppy" wake word will be available when we integrate OpenAI Whisper and GPT-4.',
+        'Voice Activation Unavailable',
+        'Voice activation is not available in this context. Please restart the app.',
         expect.any(Array)
       );
     });

@@ -29,8 +29,8 @@ export default function SettingsScreen() {
       wakeWord.setEnabled(value);
     } else {
       Alert.alert(
-        'Coming in Task 4',
-        'Voice activation with "Hey Shoppy" wake word will be available when we integrate OpenAI Whisper and GPT-4.',
+        'Voice Activation Unavailable',
+        'Voice activation is not available in this context. Please restart the app.',
         [{ text: 'OK' }]
       );
     }
@@ -60,7 +60,7 @@ export default function SettingsScreen() {
                 {voiceActivationEnabled ? 'Enabled' : 'Disabled'}
               </Text>
             ) : (
-              <Text style={styles.comingSoon}>(Coming in Task 4)</Text>
+              <Text style={styles.comingSoon}>(Unavailable)</Text>
             )}
           </View>
           <Switch

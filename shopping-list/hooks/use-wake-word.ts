@@ -89,7 +89,7 @@ export function useWakeWord(options: UseWakeWordOptions = {}): UseWakeWordResult
     status,
     isListening: status === 'listening',
     enabled,
-    wakePhrase: 'hey shoppy',
+    wakePhrase: getService().getWakePhrase(),
     detectedCommand,
     startListening,
     stopListening,
