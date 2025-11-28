@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { VoiceCommandService } from '@/services/voice-command-service';
 import { API_BASE_URL } from '@/constants/api';
 import { useTextToSpeech } from './use-text-to-speech';
+import { useVoiceListeningContext } from './use-voice-listening-context';
 
 const voiceService = new VoiceCommandService(`${API_BASE_URL}/api/voice`);
 
@@ -13,6 +14,9 @@ export function useVoiceCommands() {
   
   // TTS integration
   const { speak, isTtsEnabled, setTtsEnabled } = useTextToSpeech();
+  
+  // Voice listening context for multi-turn conversations
+  const { startListeningForClarification, clearPendingAction } = useVoiceListeningContext();
 
   /**
    * Display message to user via TTS or Alert
@@ -41,6 +45,8 @@ export function useVoiceCommands() {
       setLastResponse(response.ttsText);
 
       if (response.success) {
+        // Success - clear any pending action
+        clearPendingAction();
         await announceToUser(response.ttsText);
         
         return {
@@ -51,9 +57,18 @@ export function useVoiceCommands() {
         };
       }
 
-      // Handle clarification requests
+      // Handle clarification requests - set listening mode
       if (response.action === 'clarification') {
         const clarificationMessage = response.ttsText || 'Could you please clarify?';
+        
+        // Set up pending action in context
+        startListeningForClarification({
+          type: 'add_item_quantity_needed', // TODO: Get from response if available
+          data: response.data || {},
+          question: clarificationMessage,
+          sessionId: response.sessionId || sessionId || '',
+        });
+        
         await announceToUser(clarificationMessage);
         
         return {
@@ -75,6 +90,9 @@ export function useVoiceCommands() {
       const errorMessage = error instanceof Error ? error.message : 'Failed to process voice command';
       await announceToUser(errorMessage, 'Voice Command Error');
       
+      // Clear pending action on error
+      clearPendingAction();
+      
       return {
         success: false,
         error: errorMessage,
@@ -82,7 +100,7 @@ export function useVoiceCommands() {
     } finally {
       setProcessing(false);
     }
-  }, [sessionId, announceToUser]);
+  }, [sessionId, announceToUser, startListeningForClarification, clearPendingAction]);
 
   const clearSession = useCallback(async () => {
     if (sessionId) {
@@ -93,7 +111,9 @@ export function useVoiceCommands() {
       }
       setSessionId(null);
     }
-  }, [sessionId]);
+    // Also clear any pending actions
+    clearPendingAction();
+  }, [sessionId, clearPendingAction]);
 
   return {
     handleVoiceCommand,

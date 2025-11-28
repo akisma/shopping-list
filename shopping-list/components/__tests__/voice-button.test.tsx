@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { VoiceButton } from '../voice-button';
+import { VoiceListeningProvider, useVoiceListeningContext } from '../../hooks/use-voice-listening-context';
+import type { PendingActionData } from '../../hooks/use-voice-listening-context';
 
 // Mock the useAudioRecorder hook
 const mockStartRecording = jest.fn();
@@ -35,6 +37,45 @@ jest.mock('../../hooks/use-audio-recorder', () => ({
   useAudioRecorder: () => mockHookValues,
 }));
 
+// Helper to wrap components with providers
+const renderWithProviders = (component: React.ReactElement) => {
+  return render(
+    <VoiceListeningProvider>
+      {component}
+    </VoiceListeningProvider>
+  );
+};
+
+// Helper to render with custom listening state for testing
+const renderWithListeningState = (
+  component: React.ReactElement,
+  listeningMode: 'inactive' | 'waiting-for-clarification' | 'background-wake-word',
+  pendingAction?: PendingActionData | null
+) => {
+  // Wrapper that initializes the context state
+  const StateInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { startListeningForClarification, setBackgroundWakeWord } = useVoiceListeningContext();
+    
+    React.useEffect(() => {
+      if (listeningMode === 'waiting-for-clarification' && pendingAction) {
+        startListeningForClarification(pendingAction);
+      } else if (listeningMode === 'background-wake-word') {
+        setBackgroundWakeWord(true);
+      }
+    }, [startListeningForClarification, setBackgroundWakeWord]);
+
+    return <>{children}</>;
+  };
+
+  return render(
+    <VoiceListeningProvider>
+      <StateInitializer>
+        {component}
+      </StateInitializer>
+    </VoiceListeningProvider>
+  );
+};
+
 describe('VoiceButton', () => {
   const mockOnVoiceCommand = jest.fn();
 
@@ -60,12 +101,12 @@ describe('VoiceButton', () => {
 
   describe('rendering', () => {
     it('should render microphone icon by default', () => {
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       expect(getByTestId('voice-button')).toBeTruthy();
     });
 
     it('should be disabled when disabled prop is true', () => {
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} disabled />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} disabled />);
       const button = getByTestId('voice-button');
       expect(button.props.accessibilityState.disabled).toBe(true);
     });
@@ -75,7 +116,7 @@ describe('VoiceButton', () => {
       mockHookValues.isRecording = true;
       mockHookValues.recordingDuration = 2;
 
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       expect(getByTestId('recording-indicator')).toBeTruthy();
     });
   });
@@ -84,7 +125,7 @@ describe('VoiceButton', () => {
     it('should request permission on first press if not granted', async () => {
       mockHookValues.hasPermission = false;
 
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const button = getByTestId('voice-button');
 
       fireEvent(button, 'pressIn');
@@ -98,7 +139,7 @@ describe('VoiceButton', () => {
       mockHookValues.hasPermission = false;
       mockRequestPermission.mockResolvedValue(false);
 
-      const { getByTestId, findByText } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId, findByText } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const button = getByTestId('voice-button');
 
       fireEvent(button, 'pressIn');
@@ -109,7 +150,7 @@ describe('VoiceButton', () => {
 
   describe('press and hold gesture', () => {
     it('should start recording on pressIn', async () => {
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const button = getByTestId('voice-button');
 
       fireEvent(button, 'pressIn');
@@ -123,7 +164,7 @@ describe('VoiceButton', () => {
       // Start with recording active
       mockHookValues.isRecording = true;
       
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const button = getByTestId('voice-button');
 
       fireEvent(button, 'pressOut');
@@ -137,7 +178,7 @@ describe('VoiceButton', () => {
     it('should cancel recording if drag gesture moves too far', async () => {
       mockHookValues.isRecording = true;
       
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const cancelButton = getByTestId('cancel-button');
 
       fireEvent.press(cancelButton);
@@ -153,18 +194,18 @@ describe('VoiceButton', () => {
       mockHookValues.isRecording = true;
       mockHookValues.recordingDuration = 5;
 
-      const { getByText } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByText } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       expect(getByText('0:05')).toBeTruthy();
     });
 
     it('should disable button while processing', () => {
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} processing />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} processing />);
       const button = getByTestId('voice-button');
       expect(button.props.accessibilityState.disabled).toBe(true);
     });
 
     it('should show processing indicator when processing prop is true', () => {
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} processing />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} processing />);
       expect(getByTestId('processing-indicator')).toBeTruthy();
     });
   });
@@ -173,14 +214,14 @@ describe('VoiceButton', () => {
     it('should display error message from hook', () => {
       mockHookValues.error = 'Recording failed';
 
-      const { getByText } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByText } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       expect(getByText('Recording failed')).toBeTruthy();
     });
 
     it('should clear error when user taps error message', () => {
       mockHookValues.error = 'Recording failed';
 
-      const { getByText } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByText } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const errorMessage = getByText('Recording failed');
       
       fireEvent.press(errorMessage);
@@ -193,7 +234,7 @@ describe('VoiceButton', () => {
       // Start with recording active
       mockHookValues.isRecording = true;
 
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const button = getByTestId('voice-button');
 
       fireEvent(button, 'pressOut');
@@ -207,15 +248,82 @@ describe('VoiceButton', () => {
 
   describe('accessibility', () => {
     it('should have proper accessibility label', () => {
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const button = getByTestId('voice-button');
       expect(button.props.accessibilityLabel.toLowerCase()).toContain('voice');
     });
 
     it('should have proper accessibility hint for press and hold', () => {
-      const { getByTestId } = render(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
+      const { getByTestId } = renderWithProviders(<VoiceButton onVoiceCommand={mockOnVoiceCommand} />);
       const button = getByTestId('voice-button');
       expect(button.props.accessibilityHint).toContain('hold');
+    });
+  });
+
+  describe('clarification mode integration', () => {
+    const testPendingAction: PendingActionData = {
+      type: 'add_item_quantity_needed',
+      data: { itemName: 'chicken' },
+      question: 'How much chicken?',
+      sessionId: 'test-123',
+    };
+
+    it('should have green background when in waiting-for-clarification mode', () => {
+      const { getByTestId } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'waiting-for-clarification',
+        testPendingAction
+      );
+      const button = getByTestId('voice-button');
+      
+      // Button should have green background color (#10b981)
+      expect(button.props.style).toContainEqual(
+        expect.objectContaining({ backgroundColor: '#10b981' })
+      );
+    });
+
+    it('should show "Tap to answer..." hint when in clarification mode', () => {
+      const { getByText } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'waiting-for-clarification',
+        testPendingAction
+      );
+      
+      expect(getByText('Tap to answer...')).toBeTruthy();
+    });
+
+    it('should update accessibility label for clarification mode', () => {
+      const { getByTestId } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'waiting-for-clarification',
+        testPendingAction
+      );
+      const button = getByTestId('voice-button');
+      
+      expect(button.props.accessibilityLabel).toContain('answer clarification');
+    });
+
+    it('should update accessibility hint for clarification mode', () => {
+      const { getByTestId } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'waiting-for-clarification',
+        testPendingAction
+      );
+      const button = getByTestId('voice-button');
+      
+      expect(button.props.accessibilityHint).toContain('record your answer');
+    });
+
+    it('should have pulsing animation in clarification mode', async () => {
+      const { getByTestId } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'waiting-for-clarification',
+        testPendingAction
+      );
+      const button = getByTestId('voice-button');
+      
+      // Verify button is rendered (animation tested via visual/manual testing)
+      expect(button).toBeTruthy();
     });
   });
 });

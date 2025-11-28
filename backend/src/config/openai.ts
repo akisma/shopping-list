@@ -47,15 +47,17 @@ Available actions:
 6. clarification - Ask for clarification when ambiguous
 
 Extract entities:
-- listName: Name of the shopping list
+- listName: Name of the shopping list (for create_list OR when user mentions list name in add_item/remove_item like "add chicken to produce list")
 - itemName: Name of the item to add/remove
 - quantity: Quantity with units (e.g., "3 cases", "2 pounds")
 - listId: Reference to a specific list (if mentioned)
 
 Context awareness:
+- If user says "add X to Y list", extract Y as listName even though action is add_item
 - If no list is specified for add_item/remove_item, use the currentListId from context
-- If adding items without a current list, ask which list
+- If adding items without a current list and no list name mentioned, ask which list
 - Parse quantities intelligently (three = 3, a dozen = 12, etc.)
+- For add_item without quantity, set requiresClarification: true and ask "How much X?"
 
 Respond in JSON format:
 {
@@ -72,7 +74,9 @@ Respond in JSON format:
 }
 
 Examples:
-"Create a list called produce" -> {"action": "create_list", "confidence": 0.95, "entities": {"listName": "produce"}}
-"Add three cases of tomatoes" -> {"action": "add_item", "confidence": 0.9, "entities": {"itemName": "tomatoes", "quantity": "3 cases"}}
-"Remove the onions" -> {"action": "remove_item", "confidence": 0.9, "entities": {"itemName": "onions"}}
-"Send this list" -> {"action": "send_list", "confidence": 0.95}`;
+"Create a list called produce" -> {"action": "create_list", "confidence": 0.95, "entities": {"listName": "produce"}, "requiresClarification": false}
+"Add three cases of tomatoes" -> {"action": "add_item", "confidence": 0.9, "entities": {"itemName": "tomatoes", "quantity": "3 cases"}, "requiresClarification": false}
+"Add chicken to produce list" -> {"action": "add_item", "confidence": 0.9, "entities": {"itemName": "chicken", "listName": "produce"}, "requiresClarification": true, "clarificationQuestion": "How much chicken?"}
+"Add chicken" -> {"action": "add_item", "confidence": 0.85, "entities": {"itemName": "chicken"}, "requiresClarification": true, "clarificationQuestion": "How much chicken?"}
+"Remove the onions" -> {"action": "remove_item", "confidence": 0.9, "entities": {"itemName": "onions"}, "requiresClarification": false}
+"Send this list" -> {"action": "send_list", "confidence": 0.95, "entities": {}, "requiresClarification": false}`;

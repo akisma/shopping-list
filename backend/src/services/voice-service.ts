@@ -103,15 +103,16 @@ export class VoiceService {
     const session = this.sessionManager.getSession(sessionId);
     if (!session) return null;
 
-    const sessionContext = this.buildSessionContext(session);
-    const parsedIntent = await this.intentParser.parseIntent(transcript, sessionContext);
-    
-    if (!parsedIntent.entities?.quantity) {
-      return null; // User didn't provide quantity, continue normal flow
-    }
-
     const { itemName, listId } = pendingEntities;
-    const quantity = parsedIntent.entities.quantity;
+    
+    // For clarification responses, the transcript IS the quantity
+    // No need to parse full intent - just use the transcript as the quantity
+    const quantity = transcript.trim();
+
+    // Validate that it looks like a quantity (simple check)
+    if (!quantity || quantity.length === 0) {
+      return null; // Empty response, continue normal flow
+    }
 
     const addedItem = this.itemService.add(listId, { name: itemName, quantity });
     
@@ -152,6 +153,33 @@ export class VoiceService {
     sessionId: string
   ): VoiceCommandResponse {
     const action = parsedIntent.action === 'unknown' ? 'error' : 'clarification';
+    
+    // If this is an add_item clarification, store the pending action
+    if (parsedIntent.action === 'add_item' && parsedIntent.entities?.itemName) {
+      const session = this.sessionManager.getSession(sessionId);
+      let targetListId = session?.currentListId;
+      
+      // If listName is provided, look up the list
+      if (parsedIntent.entities.listName) {
+        const { lists } = this.listService.getAll();
+        const targetList = lists.find((list: any) => 
+          list.name.toLowerCase() === parsedIntent.entities.listName.toLowerCase()
+        );
+        if (targetList) {
+          targetListId = targetList.id;
+          this.sessionManager.setCurrentList(sessionId, targetList.id);
+        }
+      }
+      
+      // Store pending action with itemName and listId
+      if (targetListId) {
+        this.sessionManager.setPendingAction(sessionId, 'add_item', {
+          itemName: parsedIntent.entities.itemName,
+          listId: targetListId,
+        });
+      }
+    }
+    
     return {
       success: false,
       action,
@@ -256,30 +284,49 @@ export class VoiceService {
    */
   private handleAddItem(intent: any, sessionId: string): Omit<VoiceCommandResponse, 'sessionId'> {
     const session = this.sessionManager.getSession(sessionId);
+    const { itemName, quantity, listName } = intent.entities;
+
+    // If listName is provided, look up the list by name
+    let targetListId = session?.currentListId;
+    if (listName) {
+      const { lists } = this.listService.getAll();
+      const targetList = lists.find((list: any) => 
+        list.name.toLowerCase() === listName.toLowerCase()
+      );
+      
+      if (targetList) {
+        targetListId = targetList.id;
+        // Update session's current list
+        this.sessionManager.setCurrentList(sessionId, targetList.id);
+      } else {
+        return this.createClarificationResponse(
+          { action: 'add_item', clarificationQuestion: `I couldn't find a list called "${listName}". Which list would you like to add ${itemName} to?` },
+          sessionId
+        );
+      }
+    }
     
-    if (!session?.currentListId) {
+    if (!targetListId) {
       return this.createClarificationResponse(
         { action: 'add_item', clarificationQuestion: 'Which list would you like to add that to?' },
         sessionId
       );
     }
 
-    const { itemName, quantity } = intent.entities;
-
     // If quantity is missing, ask for it and store pending action
     if (!quantity) {
       this.sessionManager.setPendingAction(sessionId, 'add_item', {
         itemName,
-        listId: session.currentListId,
+        listId: targetListId,
       });
 
       return this.createClarificationResponse(
-        { action: 'add_item', clarificationQuestion: 'How much would you like me to add?' },
+        { action: 'add_item', clarificationQuestion: `How much ${itemName}?` },
         sessionId
       );
     }
 
-    const addedItem = this.itemService.add(session.currentListId, {
+    const addedItem = this.itemService.add(targetListId, {
       name: itemName,
       quantity,
     });

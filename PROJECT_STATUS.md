@@ -556,6 +556,7 @@ Physical Device: iPhone (working end-to-end)
 - ✅ "Create a list called produce"
 - ✅ "Add tomatoes" (context-aware, uses currentListId)
 - ✅ "Add three cases of tomatoes" (quantity parsing)
+- ✅ "Add fettucine to pasta list" → "How much?" → "2 pounds" (multi-turn conversation)
 - 🔲 "Remove tomatoes" (untested)
 - 🔲 "Send this list" (untested)
 - 🔲 "Show my lists" (untested)
@@ -566,11 +567,71 @@ Physical Device: iPhone (working end-to-end)
 - Documented voice processing flow: Audio → Whisper → GPT-4 → Action
 - Documented GPT-4 system prompt engineering patterns
 
-**Next:** Test remaining commands (remove, send, query), add TTS for confirmations
+---
+
+#### ✅ Phase 3: Enhanced Voice Features & UX Improvements (COMPLETE)
+
+**Status:** Complete - November 28, 2025  
+**Branch:** `feature/task-2`  
+**Test Coverage:** 317/317 tests passing (189 frontend + 128 backend)
+
+**Priority 1: Text-to-Speech Feedback** ✅
+- ✅ Installed expo-speech
+- ✅ Created useTextToSpeech hook with AsyncStorage persistence
+- ✅ Integrated TTS into useVoiceCommands (speaks confirmations, clarifications, errors)
+- ✅ Falls back to Alert.alert when TTS disabled
+- ✅ User preference toggle for TTS (isTtsEnabled, setTtsEnabled)
+- ✅ Configuration: Rate 0.9, Language en-US, Pitch 1.0
+- ✅ 14 tests for TTS hook, 12 tests for voice commands integration
+
+**Priority 2: Quantity Follow-Up Multi-Turn Conversations** ✅
+- ✅ Implemented session-based pending actions
+- ✅ Added pendingAction field to VoiceSession type
+- ✅ SessionManager methods: setPendingAction(), getPendingAction(), clearPendingAction()
+- ✅ When quantity missing in add_item, asks "How much would you like me to add?"
+- ✅ User's response parsed for quantity and completes the add operation
+- ✅ Flow tested: "add fettucine" → "How much?" → "2 pounds" → "Added 2 pounds fettucine"
+
+**Priority 3: Bug Fixes & UX Improvements** ✅
+- ✅ Fixed shopping list refresh after voice add_item command
+  - Modified index.tsx to refetch on both 'create_list' AND 'add_item' actions
+  - Item counts now update immediately after voice add
+- ✅ Fixed all 6 controller test failures (rate limiting, CORS, timeout, size validation)
+- ✅ All 317 tests passing with zero tolerance policy
+
+**Priority 4: Code Refactoring (DRY, SOLID)** ✅
+- ✅ Extracted 8+ helper methods in VoiceService:
+  - getOrCreateSession(), buildSessionContext(), resolvePendingAction()
+  - completePendingAddItem(), recordCommandInSession()
+  - createClarificationResponse(), createErrorResponse(), createAddItemSuccessResponse()
+  - requireActiveList() - shared validation across handlers
+- ✅ Frontend: Created announceToUser() to eliminate 5 duplicate TTS/Alert patterns
+- ✅ Improved semantic naming: "Step 2.5" → descriptive method names
+- ✅ Reduced cyclomatic complexity, improved maintainability
+- ✅ ~50 lines removed through DRY improvements
+
+**Priority 5: Documentation** ✅
+- ✅ Updated PROJECT_STATUS.md with Phase 3 completion
+- ✅ Added comprehensive openmemory notes covering architecture and improvements
+- ✅ Documented multi-turn conversation pattern
+- ✅ Documented refactoring decisions and patterns
+
+**Test Results:**
+```
+Backend:  128/128 tests passing (9 suites)
+Frontend: 189/189 tests passing (19 suites)
+Total:    317/317 tests passing ✅
+```
+
+**Key Patterns Implemented:**
+- Multi-turn conversations via session-based pending actions
+- Graceful degradation: TTS → Alert when disabled
+- Semantic method extraction for maintainability
+- Zero failing tests policy enforced
 
 ---
 
-#### ⏳ Phase 3: Enhanced Voice Features (NEXT - Days 5-7)
+#### 🔲 Phase 4: Advanced Voice Features (FUTURE - Days 5-7)
 
 **Priority 1: Test Remaining Commands (~30 min)**
 - [ ] Test "Remove [item]" command

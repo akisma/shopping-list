@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Pressable,
   View,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useAudioRecorder } from '../hooks/use-audio-recorder';
 import { useThemeColor } from '../hooks/use-theme-color';
+import { useVoiceListeningContext } from '../hooks/use-voice-listening-context';
 
 interface VoiceButtonProps {
   onVoiceCommand: (audioBlob: string) => void;
@@ -31,11 +32,40 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
 
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
   const iconColor = useThemeColor({}, 'text');
   const backgroundColor = useThemeColor({}, 'background');
   const errorColor = '#ef4444';
   const recordingColor = '#ef4444';
+  const clarificationColor = '#10b981'; // Green for waiting-for-clarification
+  
+  // Get listening context
+  const { listeningMode } = useVoiceListeningContext();
+
+  // Pulsing animation for waiting-for-clarification mode
+  useEffect(() => {
+    if (listeningMode === 'waiting-for-clarification' && !isRecording) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [listeningMode, isRecording, pulseAnim]);
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -109,19 +139,29 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
         </Pressable>
       )}
 
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }, { scale: pulseAnim }] }}>
         <Pressable
           testID="voice-button"
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           disabled={isDisabled}
-          accessibilityLabel="Voice command button"
-          accessibilityHint="Press and hold to record a voice command"
+          accessibilityLabel={
+            listeningMode === 'waiting-for-clarification'
+              ? 'Tap to answer clarification question'
+              : 'Voice command button'
+          }
+          accessibilityHint={
+            listeningMode === 'waiting-for-clarification'
+              ? 'Tap to record your answer'
+              : 'Press and hold to record a voice command'
+          }
           accessibilityState={{ disabled: isDisabled }}
           style={[
             styles.button,
             { backgroundColor: backgroundColor },
             isRecording && { backgroundColor: recordingColor },
+            listeningMode === 'waiting-for-clarification' &&
+              !isRecording && { backgroundColor: clarificationColor },
             isDisabled && styles.buttonDisabled,
           ]}
         >
@@ -146,6 +186,11 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
       <View style={styles.feedbackContainer}>
         {isRecording && recordingDuration < 300 && (
           <Text style={[styles.holdHint, { color: iconColor }]}>Keep holding...</Text>
+        )}
+        {!isRecording && listeningMode === 'waiting-for-clarification' && (
+          <Text style={[styles.holdHint, { color: clarificationColor }]}>
+            Tap to answer...
+          </Text>
         )}
       </View>
 

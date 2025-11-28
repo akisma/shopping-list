@@ -3,10 +3,12 @@
  * Testing voice command processing with TTS integration
  */
 
+import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { useVoiceCommands } from '../use-voice-commands';
 import { VoiceCommandService } from '@/services/voice-command-service';
+import { VoiceListeningProvider } from '../use-voice-listening-context';
 import * as Speech from 'expo-speech';
 
 // Mock Alert
@@ -48,6 +50,11 @@ jest.mock('@/services/voice-command-service', () => ({
 }));
 
 describe('useVoiceCommands', () => {
+  // Wrapper to provide context
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <VoiceListeningProvider>{children}</VoiceListeningProvider>
+  );
+
   beforeEach(() => {
     jest.clearAllMocks();
     
@@ -69,7 +76,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       await act(async () => {
         await result.current.handleVoiceCommand('audio-blob-data');
@@ -98,7 +105,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       await act(async () => {
         await result.current.handleVoiceCommand('audio-blob-data');
@@ -129,7 +136,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       await act(async () => {
         await result.current.handleVoiceCommand('audio-blob-data');
@@ -151,7 +158,7 @@ describe('useVoiceCommands', () => {
     it('should speak error message on exception', async () => {
       mockSendVoiceCommand.mockRejectedValue(new Error('Network error'));
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       await act(async () => {
         await result.current.handleVoiceCommand('audio-blob-data');
@@ -181,7 +188,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       // Disable TTS first
       await act(async () => {
@@ -214,7 +221,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       // Disable TTS
       await act(async () => {
@@ -239,19 +246,19 @@ describe('useVoiceCommands', () => {
 
   describe('TTS State Management', () => {
     it('should expose isTtsEnabled state', () => {
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
       
       expect(typeof result.current.isTtsEnabled).toBe('boolean');
     });
 
     it('should expose setTtsEnabled function', () => {
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
       
       expect(typeof result.current.setTtsEnabled).toBe('function');
     });
 
     it('should update TTS enabled state', async () => {
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       expect(result.current.isTtsEnabled).toBe(true);
 
@@ -278,7 +285,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       // Should start as not processing
       expect(result.current.processing).toBe(false);
@@ -301,7 +308,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       let response;
       await act(async () => {
@@ -324,7 +331,7 @@ describe('useVoiceCommands', () => {
         sessionId: 'session-123',
       });
 
-      const { result } = renderHook(() => useVoiceCommands());
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
 
       await act(async () => {
         await result.current.handleVoiceCommand('audio-blob-data');
@@ -338,6 +345,28 @@ describe('useVoiceCommands', () => {
       });
 
       expect(mockSendVoiceCommand).toHaveBeenCalledWith('more-audio', 'session-123');
+    });
+  });
+
+  describe('VoiceListeningContext Integration', () => {
+    it('should integrate with voice listening context', async () => {
+      // This test verifies that useVoiceCommands properly uses the VoiceListeningContext
+      // Detailed context behavior is tested in use-voice-listening-context.test.tsx
+      mockSendVoiceCommand.mockResolvedValue({
+        success: true,
+        action: 'add_item',
+        ttsText: 'Added item',
+        sessionId: 'session-123',
+      });
+
+      const { result } = renderHook(() => useVoiceCommands(), { wrapper });
+
+      await act(async () => {
+        await result.current.handleVoiceCommand('audio-blob-data');
+      });
+
+      // Should complete without errors when context is available
+      expect(result.current.sessionId).toBe('session-123');
     });
   });
 });
