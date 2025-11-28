@@ -2,6 +2,9 @@
  * Main entry point for Shopping List API server
  */
 
+// Load environment variables first
+import 'dotenv/config';
+
 import express from 'express';
 import cors from 'cors';
 import pino from 'pino';
@@ -15,6 +18,8 @@ import { ReminderController } from './controllers/reminder.controller';
 import { createShoppingListRoutes } from './routes/shopping-list.routes';
 import { createItemRoutes } from './routes/item.routes';
 import { createReminderRoutes } from './routes/reminder.routes';
+import { voiceRouter } from './routes/voice.routes';
+import { initializeVoiceController } from './controllers/voice.controller';
 import { errorHandler } from './middleware/error-handler';
 import { getHealthStatus } from './utils/health';
 import { join } from 'path';
@@ -52,7 +57,8 @@ app.use(cors({
   origin: CORS_ORIGINS,
   credentials: true
 }));
-app.use(express.json());
+// Increase body size limit for voice audio uploads (up to 5MB)
+app.use(express.json({ limit: '5mb' }));
 
 // Request logging
 app.use((req, _res, next) => {
@@ -71,6 +77,9 @@ const shoppingListController = new ShoppingListController(shoppingListService);
 const itemController = new ShoppingListItemController(itemService);
 const reminderController = new ReminderController(reminderService);
 
+// Initialize voice controller with the same database services
+initializeVoiceController(shoppingListService, itemService);
+
 // Health check endpoint
 app.get('/health', (_req, res) => {
   res.json(getHealthStatus());
@@ -80,6 +89,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/v1/shopping-lists', createShoppingListRoutes(shoppingListController));
 app.use('/api/v1/shopping-lists/:listId/items', createItemRoutes(itemController));
 app.use('/api/v1/reminders', createReminderRoutes(reminderController));
+app.use('/api/voice', voiceRouter);
 
 // Error handling (must be last)
 app.use(errorHandler(logger));

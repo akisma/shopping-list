@@ -24,6 +24,20 @@ jest.mock('@/api/client', () => ({
   },
 }));
 
+jest.mock('@/hooks/use-voice-commands', () => ({
+  useVoiceCommands: jest.fn(() => ({
+    handleVoiceCommand: jest.fn(),
+    clearSession: jest.fn(),
+    processing: false,
+    sessionId: null,
+    lastResponse: null,
+  })),
+}));
+
+jest.mock('@/components/voice-button', () => ({
+  VoiceButton: () => null,
+}));
+
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
