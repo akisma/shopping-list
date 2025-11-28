@@ -833,25 +833,31 @@ interface VoiceStatusIndicatorProps {
 ```typescript
 interface VoiceActivationBannerProps {
   visible: boolean;
+  isListening?: boolean;
 }
 ```
 
 **Design:**
 - Light green background (#E8F5E9)
 - Green bottom border (#4CAF50)
-- Message: "🎤 Voice Activation On - Say 'Hey Shoppy' to start"
+- Dynamic message based on listening state:
+  - Not listening: "🎤 Voice Activation On - Say 'Hey Shoppy' to start"
+  - Listening: "🎤 Voice Activation On - Listening..."
 - Conditionally rendered (null when hidden)
 - Full-width banner at top of screen
 
 **Usage Example:**
 ```typescript
-<VoiceActivationBanner visible={voiceActivationEnabled} />
+<VoiceActivationBanner 
+  visible={voiceActivationEnabled} 
+  isListening={wakeWord?.isListening} 
+/>
 ```
 
 **"Hey Shoppy" Wake Word:**
 - Chosen for restaurant chef use case (hands-free operation)
 - Alternative to "Hey Chef" for better branding
-- Will use expo-speech-recognition in Task 4
+- Implemented via WakeWordService
 - Mentioned consistently across all voice UI
 
 ---
@@ -862,25 +868,97 @@ interface VoiceActivationBannerProps {
 
 **Features:**
 - Voice Features section header
-- **Toggle 1:** Enable Voice Activation
+- **Toggle 1:** Enable Voice Activation (FUNCTIONAL)
   - Label: "Say 'Hey Shoppy' to activate"
-  - Message: "(Coming in Task 4)"
-  - Currently disabled, shows info alert when pressed
+  - When WakeWordContext available: Toggle enables/disables wake word detection
+  - Shows "Enabled"/"Disabled" status
+  - Falls back to "Coming in Task 4" message if context unavailable
   
 - **Toggle 2:** Voice Button on Lists
   - Label: "Tap microphone button"
   - Message: "(Coming Soon)"
   - Currently disabled, shows info alert when pressed
 
-**Alert Messages (Phase 6):**
-- Voice Activation Alert: "Voice activation with 'Hey Shoppy' wake word will be available when we integrate OpenAI Whisper and GPT-4."
-- Voice Button Alert: "Voice button functionality will be available in the next update. We're building the voice recognition features!"
+**Integration with WakeWordContext:**
+- Toggle controls `wakeWord.setEnabled()`
+- Value reflects `wakeWord.enabled` state
+- Status shows dynamically based on enabled state
 
-**Integration (Task 4):**
-- Toggles become functional
-- Enable/disable voice activation
-- Control wake word detection
-- Configure voice sensitivity
+---
+
+**6. WakeWordService** (`services/wake-word-service.ts`)
+
+**Purpose:** Core service for "Hey Shoppy" wake word detection
+
+**API:**
+```typescript
+export type WakeWordStatus = 'idle' | 'listening' | 'detected';
+
+export interface WakeWordServiceOptions {
+  onWakeWordDetected: (remainingTranscript: string) => void;
+  onStatusChange: (status: WakeWordStatus) => void;
+}
+
+export class WakeWordService {
+  getWakePhrase(): string;        // Returns "hey shoppy"
+  getStatus(): WakeWordStatus;
+  isListening(): boolean;
+  isEnabled(): boolean;
+  setEnabled(enabled: boolean): void;
+  start(): void;                  // Start listening
+  stop(): void;                   // Stop listening
+  processTranscript(transcript: string): boolean;  // Check for wake word
+  resetAfterDetection(): void;    // Reset to listening state
+}
+```
+
+**Wake Word Detection:**
+- Detects "hey shoppy" (case-insensitive)
+- Extracts command text after wake phrase
+- Example: "Hey Shoppy add milk" → callback receives "add milk"
+
+---
+
+**7. useWakeWord Hook** (`hooks/use-wake-word.ts`)
+
+**Purpose:** React hook wrapper for WakeWordService
+
+**API:**
+```typescript
+interface UseWakeWordOptions {
+  onWakeWordDetected?: (command: string) => void;
+}
+
+interface UseWakeWordResult {
+  status: WakeWordStatus;
+  isListening: boolean;
+  enabled: boolean;
+  wakePhrase: string;
+  detectedCommand: string | null;
+  startListening: () => void;
+  stopListening: () => void;
+  setEnabled: (enabled: boolean) => void;
+  processTranscript: (transcript: string) => boolean;
+  resetDetection: () => void;
+}
+```
+
+---
+
+**8. WakeWordContext** (`contexts/wake-word-context.tsx`)
+
+**Purpose:** App-wide state sharing for wake word functionality
+
+**Usage:**
+```typescript
+// In root layout
+<WakeWordProvider onWakeWordDetected={handleCommand}>
+  <App />
+</WakeWordProvider>
+
+// In any child component
+const { isListening, startListening, processTranscript } = useWakeWordContext();
+```
 
 ---
 
@@ -2135,6 +2213,73 @@ CORS_ORIGINS=http://localhost:8081,http://localhost:19000,http://localhost:19006
 ---
 
 ## Changelog
+
+### Version 0.5.0 - November 28, 2025 ("Hey Shoppy" Wake Word Detection)
+
+**Added:**
+- Wake word detection service for "Hey Shoppy" activation
+- Custom `useWakeWord` hook for React integration
+- `WakeWordContext` for app-wide state management
+- Settings toggle now enables/disables wake word detection
+- VoiceActivationBanner shows listening state
+- VoiceStatusIndicator reflects wake word detection status
+
+**Wake Word Feature:**
+- Users can say "Hey Shoppy" to start voice command listening
+- Works in addition to pressing the microphone button
+- Settings toggle in Voice Features section controls activation
+- Banner shows "Listening..." when actively listening for wake word
+- Green indicator when ready, red when listening
+
+**Architecture:**
+- `WakeWordService` - Core service for wake word detection
+  - Processes transcripts and detects "hey shoppy" phrase
+  - Supports enable/disable functionality
+  - Status states: idle, listening, detected
+  - Extracts command text after wake phrase
+
+- `useWakeWord` hook - React hook wrapper
+  - Manages service lifecycle
+  - Provides state: status, isListening, enabled, detectedCommand
+  - Methods: startListening, stopListening, setEnabled, processTranscript
+
+- `WakeWordProvider` - Context provider
+  - App-wide state sharing
+  - Integrated in root layout
+  - Optional onWakeWordDetected callback
+
+**Test Coverage:**
+- WakeWordService: 29 tests
+- useWakeWord hook: 16 tests  
+- WakeWordContext: 14 tests
+- Settings integration: 6 tests
+- VoiceActivationBanner: 11 tests
+- Total: 194 tests, all passing
+
+**Usage:**
+```typescript
+// In any component within WakeWordProvider
+const { isListening, startListening, processTranscript } = useWakeWordContext();
+
+// Start listening for wake word
+startListening();
+
+// Process speech transcript (from speech recognition)
+processTranscript('hey shoppy add milk');
+// Returns true, calls onWakeWordDetected with 'add milk'
+```
+
+**Settings Screen:**
+- Voice Activation toggle now functional when context available
+- Shows "Enabled"/"Disabled" status
+- Toggle controls wake word detection globally
+
+**Next Steps:**
+- Integrate with expo-speech-recognition for actual speech-to-text
+- Connect detected commands to shopping list actions
+- Add voice feedback using text-to-speech
+
+---
 
 ### Version 0.4.0 - November 23, 2025 (Voice UI Stubs - Phase 6)
 
