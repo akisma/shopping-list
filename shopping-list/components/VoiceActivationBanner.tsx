@@ -8,9 +8,10 @@ import { View, Text, StyleSheet } from 'react-native';
 
 interface VoiceActivationBannerProps {
   visible: boolean;
+  isListening?: boolean;
 }
 
-export function VoiceActivationBanner({ visible }: VoiceActivationBannerProps) {
+export function VoiceActivationBanner({ visible, isListening = false }: VoiceActivationBannerProps) {
   if (!visible) {
     return null;
   }
@@ -18,7 +19,7 @@ export function VoiceActivationBanner({ visible }: VoiceActivationBannerProps) {
   return (
     <View testID="voice-activation-banner" style={styles.banner}>
       <Text style={styles.text}>
-        🎤 Voice Activation On - Say &ldquo;Hey Shoppy&rdquo; to start (Coming Soon)
+        🎤 Voice Activation On - {isListening ? 'Listening...' : 'Say "Hey Shoppy" to start'}
       </Text>
     </View>
   );

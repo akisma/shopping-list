@@ -5,17 +5,35 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, Alert } from 'react-native';
+import { useWakeWordContext } from '@/contexts/wake-word-context';
+
+// Try to get wake word context, return null if not available
+function useTryWakeWordContext() {
+  try {
+    return useWakeWordContext();
+  } catch {
+    return null;
+  }
+}
 
 export default function SettingsScreen() {
-  const [voiceActivationEnabled] = React.useState(false);
+  const wakeWord = useTryWakeWordContext();
   const [voiceButtonsEnabled] = React.useState(true);
 
+  // Use wake word context if available, otherwise fall back to stub behavior
+  const voiceActivationEnabled = wakeWord?.enabled ?? false;
+  const isWakeWordAvailable = wakeWord !== null;
+
   const handleVoiceActivationToggle = (value: boolean) => {
-    Alert.alert(
-      'Coming in Task 4',
-      'Voice activation with "Hey Shoppy" wake word will be available when we integrate OpenAI Whisper and GPT-4.',
-      [{ text: 'OK' }]
-    );
+    if (wakeWord) {
+      wakeWord.setEnabled(value);
+    } else {
+      Alert.alert(
+        'Coming in Task 4',
+        'Voice activation with "Hey Shoppy" wake word will be available when we integrate OpenAI Whisper and GPT-4.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleVoiceButtonToggle = (value: boolean) => {
@@ -37,13 +55,19 @@ export default function SettingsScreen() {
             <Text style={styles.settingDescription}>
               Say &ldquo;Hey Shoppy&rdquo; to activate
             </Text>
-            <Text style={styles.comingSoon}>(Coming in Task 4)</Text>
+            {isWakeWordAvailable ? (
+              <Text style={voiceActivationEnabled ? styles.statusEnabled : styles.statusDisabled}>
+                {voiceActivationEnabled ? 'Enabled' : 'Disabled'}
+              </Text>
+            ) : (
+              <Text style={styles.comingSoon}>(Coming in Task 4)</Text>
+            )}
           </View>
           <Switch
             testID="voice-activation-toggle"
             value={voiceActivationEnabled}
             onValueChange={handleVoiceActivationToggle}
-            disabled={true}
+            disabled={!isWakeWordAvailable}
           />
         </View>
 
@@ -109,5 +133,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     fontStyle: 'italic',
+  },
+  statusEnabled: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  statusDisabled: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    fontWeight: '500',
   },
 });

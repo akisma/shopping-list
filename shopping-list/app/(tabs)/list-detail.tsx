@@ -23,14 +23,25 @@ import { ItemFormModal, type ItemFormData } from '@/components/ui/item-form-moda
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ShoppingListItem } from '@/types/api';
-import { VoiceStatusIndicator } from '@/components/VoiceStatusIndicator';
+import { VoiceStatusIndicator, VoiceStatus } from '@/components/VoiceStatusIndicator';
 import { VoiceActivationBanner } from '@/components/VoiceActivationBanner';
+import { useWakeWordContext } from '@/contexts/wake-word-context';
+
+// Try to get wake word context, return null if not available
+function useTryWakeWordContext() {
+  try {
+    return useWakeWordContext();
+  } catch {
+    return null;
+  }
+}
 
 export default function ListDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const insets = useSafeAreaInsets();
+  const wakeWord = useTryWakeWordContext();
 
   const { data: list, isLoading, isError, error, refetch } = useShoppingListDetail(id!);
   const createItem = useCreateItem(id!);
@@ -54,15 +65,36 @@ export default function ListDetailScreen() {
   const [itemToDelete, setItemToDelete] = useState<ShoppingListItem | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
-  // Voice activation state (stub - will be functional in Task 4)
-  const [voiceActivationEnabled] = useState(false);
+  // Voice activation state - use wake word context if available
+  const voiceActivationEnabled = wakeWord?.enabled ?? false;
+
+  // Get voice status based on wake word context
+  const getVoiceStatus = (): VoiceStatus => {
+    if (!wakeWord) return 'coming-soon';
+    switch (wakeWord.status) {
+      case 'listening':
+        return 'listening';
+      case 'detected':
+        return 'processing';
+      default:
+        return 'ready';
+    }
+  };
 
   const handleVoicePress = () => {
-    Alert.alert(
-      'Voice Commands Coming Soon',
-      'Voice-powered item adding will be available in the next update. Say "Hey Shoppy, add tomatoes" to get started!',
-      [{ text: 'OK' }]
-    );
+    if (wakeWord) {
+      if (wakeWord.isListening) {
+        wakeWord.stopListening();
+      } else {
+        wakeWord.startListening();
+      }
+    } else {
+      Alert.alert(
+        'Voice Commands Coming Soon',
+        'Voice-powered item adding will be available in the next update. Say "Hey Shoppy, add tomatoes" to get started!',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   // Get status badge details
@@ -243,7 +275,7 @@ export default function ListDetailScreen() {
         <Stack.Screen options={{ title: list?.name || 'List' }} />
         
         {/* Voice Activation Banner */}
-        <VoiceActivationBanner visible={voiceActivationEnabled} />
+        <VoiceActivationBanner visible={voiceActivationEnabled} isListening={wakeWord?.isListening} />
         
         {/* Header with Voice Button and Status Badge */}
         {list && (
@@ -251,7 +283,7 @@ export default function ListDetailScreen() {
             <View style={[styles.statusBadge, { backgroundColor: getStatusBadgeInfo().color }]} testID="status-badge">
               <Text style={styles.statusBadgeText}>{getStatusBadgeInfo().text}</Text>
             </View>
-            <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+            <VoiceStatusIndicator status={getVoiceStatus()} onPress={handleVoicePress} />
           </View>
         )}
         
@@ -326,14 +358,14 @@ export default function ListDetailScreen() {
       <Stack.Screen options={{ title: list.name }} />
       
       {/* Voice Activation Banner */}
-      <VoiceActivationBanner visible={voiceActivationEnabled} />
+      <VoiceActivationBanner visible={voiceActivationEnabled} isListening={wakeWord?.isListening} />
       
       {/* Header with Voice Button and Status Badge */}
       <View style={styles.header}>
         <View style={[styles.statusBadge, { backgroundColor: statusBadgeInfo.color }]} testID="status-badge">
           <Text style={styles.statusBadgeText}>{statusBadgeInfo.text}</Text>
         </View>
-        <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+        <VoiceStatusIndicator status={getVoiceStatus()} onPress={handleVoicePress} />
       </View>
 
       {/* Error message for send */}

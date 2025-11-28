@@ -22,11 +22,21 @@ import { useShoppingLists, useCreateShoppingList, useDeleteShoppingList } from '
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
-import { VoiceStatusIndicator } from '@/components/VoiceStatusIndicator';
+import { VoiceStatusIndicator, VoiceStatus } from '@/components/VoiceStatusIndicator';
 import { VoiceActivationBanner } from '@/components/VoiceActivationBanner';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useWakeWordContext } from '@/contexts/wake-word-context';
 import type { ShoppingListWithCount } from '@/types/api';
+
+// Try to get wake word context, return null if not available
+function useTryWakeWordContext() {
+  try {
+    return useWakeWordContext();
+  } catch {
+    return null;
+  }
+}
 
 export default function ShoppingListsScreen() {
   const router = useRouter();
@@ -35,6 +45,7 @@ export default function ShoppingListsScreen() {
   const deleteMutation = useDeleteShoppingList();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const wakeWord = useTryWakeWordContext();
   
   // Create modal state
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -46,16 +57,37 @@ export default function ShoppingListsScreen() {
   const [listToDelete, setListToDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
-  // Voice activation state (stub for Phase 6)
-  const [voiceActivationEnabled] = useState(false);
+  // Voice activation state - use wake word context if available
+  const voiceActivationEnabled = wakeWord?.enabled ?? false;
+
+  // Get voice status based on wake word context
+  const getVoiceStatus = (): VoiceStatus => {
+    if (!wakeWord) return 'coming-soon';
+    switch (wakeWord.status) {
+      case 'listening':
+        return 'listening';
+      case 'detected':
+        return 'processing';
+      default:
+        return 'ready';
+    }
+  };
 
   // Handle voice button press
   const handleVoicePress = () => {
-    Alert.alert(
-      'Voice Commands Coming Soon',
-      'Voice-powered list creation will be available in the next update. Say "Hey Shoppy" to get started!',
-      [{ text: 'OK' }]
-    );
+    if (wakeWord) {
+      if (wakeWord.isListening) {
+        wakeWord.stopListening();
+      } else {
+        wakeWord.startListening();
+      }
+    } else {
+      Alert.alert(
+        'Voice Commands Coming Soon',
+        'Voice-powered list creation will be available in the next update. Say "Hey Shoppy" to get started!',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   // Handle create list
@@ -183,13 +215,13 @@ export default function ShoppingListsScreen() {
   if (!lists || lists.length === 0) {
     return (
       <ThemedView style={styles.container}>
-        <VoiceActivationBanner visible={voiceActivationEnabled} />
+        <VoiceActivationBanner visible={voiceActivationEnabled} isListening={wakeWord?.isListening} />
         <View style={styles.header}>
           <ThemedText type="title" style={styles.headerTitle}>
             Shopping Lists
           </ThemedText>
           <View style={styles.headerActions}>
-            <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+            <VoiceStatusIndicator status={getVoiceStatus()} onPress={handleVoicePress} />
             <TouchableOpacity
               testID="create-list-button"
               style={[styles.createButton, { backgroundColor: colors.tint }]}
@@ -249,13 +281,13 @@ export default function ShoppingListsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <VoiceActivationBanner visible={voiceActivationEnabled} />
+      <VoiceActivationBanner visible={voiceActivationEnabled} isListening={wakeWord?.isListening} />
       <View style={styles.header}>
         <ThemedText type="title" style={styles.headerTitle}>
           Shopping Lists
         </ThemedText>
         <View style={styles.headerActions}>
-          <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+          <VoiceStatusIndicator status={getVoiceStatus()} onPress={handleVoicePress} />
           <TouchableOpacity
             testID="create-list-button"
             style={[styles.createButton, { backgroundColor: colors.tint }]}

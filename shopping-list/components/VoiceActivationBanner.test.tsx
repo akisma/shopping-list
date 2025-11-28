@@ -35,16 +35,22 @@ describe('VoiceActivationBanner', () => {
       expect(screen.getByText(/Voice Activation On/i)).toBeTruthy();
     });
 
-    it('displays "Hey Shoppy" wake word instruction', () => {
-      render(<VoiceActivationBanner visible={true} />);
+    it('displays "Hey Shoppy" wake word instruction when not listening', () => {
+      render(<VoiceActivationBanner visible={true} isListening={false} />);
       
       expect(screen.getByText(/Hey Shoppy/i)).toBeTruthy();
     });
 
-    it('displays "Coming Soon" message', () => {
+    it('displays "Listening..." when isListening is true', () => {
+      render(<VoiceActivationBanner visible={true} isListening={true} />);
+      
+      expect(screen.getByText(/Listening\.\.\./i)).toBeTruthy();
+    });
+
+    it('displays instruction by default when isListening not provided', () => {
       render(<VoiceActivationBanner visible={true} />);
       
-      expect(screen.getByText(/Coming Soon/i)).toBeTruthy();
+      expect(screen.getByText(/Say "Hey Shoppy" to start/i)).toBeTruthy();
     });
   });
 
