@@ -30,7 +30,7 @@ import type { ShoppingListWithCount } from '@/types/api';
 
 export default function ShoppingListsScreen() {
   const router = useRouter();
-  const { data: lists, isLoading, isError, error, refetch } = useShoppingLists();
+  const { data: lists, isLoading, isError, error, refetch, isRefetching } = useShoppingLists();
   const createMutation = useCreateShoppingList();
   const deleteMutation = useDeleteShoppingList();
   const colorScheme = useColorScheme();
@@ -267,11 +267,14 @@ export default function ShoppingListsScreen() {
       </View>
 
       <FlatList
+        testID="shopping-lists-flatlist"
         data={lists}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        refreshing={isRefetching ?? false}
+        onRefresh={refetch}
       />
 
       {/* Create List Modal */}

@@ -394,4 +394,67 @@ describe('ListDetailScreen', () => {
       expect(screen.queryByTestId('voice-activation-banner')).toBeNull();
     });
   });
+
+  describe('Pull to Refresh', () => {
+    const mockList = {
+      id: 'list-123',
+      name: 'Groceries',
+      status: 'active',
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+      items: [
+        {
+          id: 'item-1',
+          shoppingListId: 'list-123',
+          name: 'Milk',
+          quantity: '1 gallon',
+          notes: null,
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-01T00:00:00Z',
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      mockUseLocalSearchParams.mockReturnValue({ id: 'list-123' });
+    });
+
+    it('should have pull-to-refresh enabled on the FlatList', () => {
+      const mockRefetch = jest.fn();
+      mockUseShoppingListDetail.mockReturnValue({
+        data: mockList,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+        isRefetching: false,
+      } as any);
+
+      render(<ListDetailScreen />, { wrapper: createWrapper() });
+
+      const flatList = screen.getByTestId('list-items-flatlist');
+      expect(flatList.props.refreshing).toBeDefined();
+      expect(flatList.props.onRefresh).toBeDefined();
+    });
+
+    it('should call refetch when pull-to-refresh is triggered', async () => {
+      const mockRefetch = jest.fn().mockResolvedValue({ data: mockList });
+      mockUseShoppingListDetail.mockReturnValue({
+        data: mockList,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+        isRefetching: false,
+      } as any);
+
+      render(<ListDetailScreen />, { wrapper: createWrapper() });
+
+      const flatList = screen.getByTestId('list-items-flatlist');
+      // Simulate pull-to-refresh
+      flatList.props.onRefresh();
+
+      expect(mockRefetch).toHaveBeenCalled();
+    });
+  });
 });

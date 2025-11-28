@@ -32,7 +32,7 @@ export default function ListDetailScreen() {
   const colors = Colors[colorScheme ?? 'light'];
   const insets = useSafeAreaInsets();
 
-  const { data: list, isLoading, isError, error, refetch } = useShoppingListDetail(id!);
+  const { data: list, isLoading, isError, error, refetch, isRefetching } = useShoppingListDetail(id!);
   const createItem = useCreateItem(id!);
   const deleteItem = useDeleteItem(id!);
   const updateItem = useUpdateItem(id!);
@@ -344,10 +344,13 @@ export default function ListDetailScreen() {
       )}
 
       <FlatList
+        testID="list-items-flatlist"
         data={list.items}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 50 }]}
+        refreshing={isRefetching ?? false}
+        onRefresh={refetch}
       />
       
       {/* Send to Manager Button (only show if list has items and is active) */}

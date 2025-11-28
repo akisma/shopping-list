@@ -275,4 +275,55 @@ describe('ShoppingListsScreen', () => {
       expect(screen.queryByTestId('voice-activation-banner')).toBeNull();
     });
   });
+
+  describe('Pull to Refresh', () => {
+    const mockLists = [
+      {
+        id: '1',
+        name: 'Groceries',
+        status: 'active' as const,
+        itemCount: 5,
+        createdAt: '2025-11-02T00:00:00Z',
+        updatedAt: '2025-11-02T00:00:00Z',
+      },
+    ];
+
+    it('should have pull-to-refresh enabled on the FlatList', () => {
+      const mockRefetch = jest.fn();
+      mockUseShoppingLists.mockReturnValue({
+        data: mockLists,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+        isRefetching: false,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      const flatList = screen.getByTestId('shopping-lists-flatlist');
+      expect(flatList.props.refreshing).toBeDefined();
+      expect(flatList.props.onRefresh).toBeDefined();
+    });
+
+    it('should call refetch when pull-to-refresh is triggered', async () => {
+      const mockRefetch = jest.fn().mockResolvedValue({ data: mockLists });
+      mockUseShoppingLists.mockReturnValue({
+        data: mockLists,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+        isRefetching: false,
+      } as any);
+
+      render(<ShoppingListsScreen />, { wrapper: createWrapper() });
+
+      const flatList = screen.getByTestId('shopping-lists-flatlist');
+      // Simulate pull-to-refresh
+      flatList.props.onRefresh();
+
+      expect(mockRefetch).toHaveBeenCalled();
+    });
+  });
 });
