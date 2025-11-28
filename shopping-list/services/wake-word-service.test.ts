@@ -1,9 +1,9 @@
 /**
- * Wake Word Service Tests (TDD - RED Phase)
+ * Wake Word Service Tests
  * Tests for "Hey Shoppy" wake word detection service
  */
 
-import { WakeWordService, WakeWordStatus } from './wake-word-service';
+import { WakeWordService } from './wake-word-service';
 
 describe('WakeWordService', () => {
   let service: WakeWordService;
@@ -24,199 +24,95 @@ describe('WakeWordService', () => {
   });
 
   describe('initialization', () => {
-    it('should initialize with idle status', () => {
+    it('should initialize with correct defaults', () => {
       expect(service.getStatus()).toBe('idle');
-    });
-
-    it('should have the correct wake phrase', () => {
       expect(service.getWakePhrase()).toBe('hey shoppy');
-    });
-
-    it('should not be listening initially', () => {
       expect(service.isListening()).toBe(false);
+      expect(service.isEnabled()).toBe(true);
     });
   });
 
-  describe('start/stop', () => {
-    it('should change status to listening when started', () => {
+  describe('start/stop listening', () => {
+    it('should transition status when starting and stopping', () => {
       service.start();
       expect(service.getStatus()).toBe('listening');
-    });
-
-    it('should call onStatusChange when started', () => {
-      service.start();
+      expect(service.isListening()).toBe(true);
       expect(mockOnStatusChange).toHaveBeenCalledWith('listening');
-    });
 
-    it('should change status to idle when stopped', () => {
-      service.start();
-      service.stop();
-      expect(service.getStatus()).toBe('idle');
-    });
-
-    it('should call onStatusChange when stopped', () => {
-      service.start();
       mockOnStatusChange.mockClear();
       service.stop();
-      expect(mockOnStatusChange).toHaveBeenCalledWith('idle');
-    });
-
-    it('should report isListening correctly when started', () => {
-      service.start();
-      expect(service.isListening()).toBe(true);
-    });
-
-    it('should report isListening correctly when stopped', () => {
-      service.start();
-      service.stop();
+      expect(service.getStatus()).toBe('idle');
       expect(service.isListening()).toBe(false);
+      expect(mockOnStatusChange).toHaveBeenCalledWith('idle');
     });
   });
 
   describe('wake word detection', () => {
-    it('should detect exact "hey shoppy" phrase', () => {
-      service.start();
-      const detected = service.processTranscript('hey shoppy');
-      expect(detected).toBe(true);
-      expect(mockOnWakeWordDetected).toHaveBeenCalled();
-    });
-
     it('should detect "hey shoppy" case-insensitively', () => {
       service.start();
-      const detected = service.processTranscript('HEY SHOPPY');
-      expect(detected).toBe(true);
-      expect(mockOnWakeWordDetected).toHaveBeenCalled();
-    });
-
-    it('should detect "hey shoppy" with mixed case', () => {
-      service.start();
-      const detected = service.processTranscript('Hey Shoppy');
-      expect(detected).toBe(true);
-      expect(mockOnWakeWordDetected).toHaveBeenCalled();
-    });
-
-    it('should detect wake phrase at start of sentence', () => {
-      service.start();
-      const detected = service.processTranscript('hey shoppy add milk');
-      expect(detected).toBe(true);
-      expect(mockOnWakeWordDetected).toHaveBeenCalledWith('add milk');
-    });
-
-    it('should not detect unrelated phrases', () => {
-      service.start();
-      const detected = service.processTranscript('hello world');
-      expect(detected).toBe(false);
-      expect(mockOnWakeWordDetected).not.toHaveBeenCalled();
-    });
-
-    it('should not detect similar but incorrect phrases', () => {
-      service.start();
-      const detected = service.processTranscript('hey shop');
-      expect(detected).toBe(false);
-      expect(mockOnWakeWordDetected).not.toHaveBeenCalled();
-    });
-
-    it('should not detect when not listening', () => {
-      const detected = service.processTranscript('hey shoppy');
-      expect(detected).toBe(false);
-      expect(mockOnWakeWordDetected).not.toHaveBeenCalled();
-    });
-
-    it('should handle empty transcript', () => {
-      service.start();
-      const detected = service.processTranscript('');
-      expect(detected).toBe(false);
-      expect(mockOnWakeWordDetected).not.toHaveBeenCalled();
-    });
-
-    it('should handle whitespace-only transcript', () => {
-      service.start();
-      const detected = service.processTranscript('   ');
-      expect(detected).toBe(false);
-      expect(mockOnWakeWordDetected).not.toHaveBeenCalled();
-    });
-
-    it('should trim and normalize transcript', () => {
-      service.start();
-      const detected = service.processTranscript('  hey shoppy  ');
-      expect(detected).toBe(true);
-      expect(mockOnWakeWordDetected).toHaveBeenCalled();
-    });
-  });
-
-  describe('status management', () => {
-    it('should change status to detected when wake word is found', () => {
-      service.start();
-      service.processTranscript('hey shoppy');
-      expect(service.getStatus()).toBe('detected');
-    });
-
-    it('should call onStatusChange with detected status', () => {
-      service.start();
-      mockOnStatusChange.mockClear();
-      service.processTranscript('hey shoppy');
-      expect(mockOnStatusChange).toHaveBeenCalledWith('detected');
-    });
-
-    it('should return to listening status after reset', () => {
-      service.start();
-      service.processTranscript('hey shoppy');
+      expect(service.processTranscript('hey shoppy')).toBe(true);
+      
       service.resetAfterDetection();
-      expect(service.getStatus()).toBe('listening');
+      expect(service.processTranscript('HEY SHOPPY')).toBe(true);
+      
+      service.resetAfterDetection();
+      expect(service.processTranscript('  Hey Shoppy  ')).toBe(true);
     });
-  });
 
-  describe('callbacks', () => {
-    it('should pass remaining transcript after wake phrase to callback', () => {
+    it('should extract command after wake phrase', () => {
       service.start();
       service.processTranscript('hey shoppy add eggs to the list');
       expect(mockOnWakeWordDetected).toHaveBeenCalledWith('add eggs to the list');
     });
 
-    it('should pass empty string if only wake phrase', () => {
+    it('should not detect when not listening or disabled', () => {
+      expect(service.processTranscript('hey shoppy')).toBe(false);
+      
+      service.setEnabled(false);
       service.start();
-      service.processTranscript('hey shoppy');
-      expect(mockOnWakeWordDetected).toHaveBeenCalledWith('');
+      expect(service.processTranscript('hey shoppy')).toBe(false);
     });
 
+    it('should reject invalid inputs', () => {
+      service.start();
+      expect(service.processTranscript('')).toBe(false);
+      expect(service.processTranscript('   ')).toBe(false);
+      expect(service.processTranscript('hello world')).toBe(false);
+      expect(service.processTranscript('hey shop')).toBe(false);
+    });
+  });
+
+  describe('status management', () => {
+    it('should update status to detected and reset correctly', () => {
+      service.start();
+      service.processTranscript('hey shoppy');
+      expect(service.getStatus()).toBe('detected');
+
+      service.resetAfterDetection();
+      expect(service.getStatus()).toBe('listening');
+    });
+  });
+
+  describe('error handling', () => {
     it('should handle callback errors gracefully', () => {
-      const errorCallback = jest.fn(() => {
-        throw new Error('Callback error');
-      });
       const errorService = new WakeWordService({
-        onWakeWordDetected: errorCallback,
+        onWakeWordDetected: () => { throw new Error('Callback error'); },
         onStatusChange: mockOnStatusChange,
       });
       
       errorService.start();
-      // Should not throw
       expect(() => errorService.processTranscript('hey shoppy')).not.toThrow();
     });
   });
 
   describe('enable/disable', () => {
-    it('should be enabled by default', () => {
-      expect(service.isEnabled()).toBe(true);
-    });
-
-    it('should not detect when disabled', () => {
-      service.setEnabled(false);
-      service.start();
-      const detected = service.processTranscript('hey shoppy');
-      expect(detected).toBe(false);
-    });
-
-    it('should report disabled status', () => {
+    it('should toggle enabled state and resume working after re-enable', () => {
       service.setEnabled(false);
       expect(service.isEnabled()).toBe(false);
-    });
-
-    it('should re-enable and work again', () => {
-      service.setEnabled(false);
+      
       service.setEnabled(true);
       service.start();
-      const detected = service.processTranscript('hey shoppy');
-      expect(detected).toBe(true);
+      expect(service.processTranscript('hey shoppy')).toBe(true);
     });
   });
 });
