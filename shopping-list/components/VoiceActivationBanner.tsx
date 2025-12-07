@@ -37,7 +37,18 @@ export function VoiceActivationBanner({ visible }: VoiceActivationBannerProps) {
     );
   }
 
-  // Show normal wake word banner when not in clarification mode
+  // Show active wake word banner when in background-wake-word mode
+  if (listeningMode === 'background-wake-word') {
+    return (
+      <View testID="voice-activation-banner" style={styles.wakeWordBanner}>
+        <Text style={styles.wakeWordText}>
+          🎤 Listening for "Picovoice" - or press and hold to speak
+        </Text>
+      </View>
+    );
+  }
+
+  // Show inactive banner (coming soon)
   return (
     <View testID="voice-activation-banner" style={styles.banner}>
       <Text style={styles.text}>
@@ -59,6 +70,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2E7D32',
     textAlign: 'center',
+  },
+  wakeWordBanner: {
+    backgroundColor: '#E3F2FD', // Light blue for active wake word
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2196F3',
+  },
+  wakeWordText: {
+    fontSize: 14,
+    color: '#1565C0',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   clarificationBanner: {
     backgroundColor: '#FFF3CD', // Amber/yellow for attention

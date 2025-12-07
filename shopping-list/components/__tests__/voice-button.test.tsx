@@ -326,4 +326,71 @@ describe('VoiceButton', () => {
       expect(button).toBeTruthy();
     });
   });
+
+  describe('wake word mode integration', () => {
+    it('should show subtle blue border when in background-wake-word mode', () => {
+      const { getByTestId } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'background-wake-word'
+      );
+      const button = getByTestId('voice-button');
+      
+      // Button should have blue border to indicate wake word is listening
+      expect(button.props.style).toContainEqual(
+        expect.objectContaining({ borderWidth: 3, borderColor: '#3B82F6' })
+      );
+    });
+
+    it('should show "Listening for wake word..." hint in background-wake-word mode', () => {
+      const { getByText } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'background-wake-word'
+      );
+      
+      expect(getByText(/Listening for wake word/i)).toBeTruthy();
+    });
+
+    it('should update accessibility label for background-wake-word mode', () => {
+      const { getByTestId } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'background-wake-word'
+      );
+      const button = getByTestId('voice-button');
+      
+      expect(button.props.accessibilityLabel).toContain('Wake word detection active');
+    });
+
+    it('should not show wake word indicator when recording', () => {
+      mockHookValues.isRecording = true;
+      
+      const { queryByText } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'background-wake-word'
+      );
+      
+      // Should show recording indicator, not wake word message
+      expect(queryByText(/Listening for wake word/i)).toBeNull();
+    });
+
+    it('should have higher priority for clarification mode than wake word mode', () => {
+      const testPendingAction: PendingActionData = {
+        type: 'add_item_quantity_needed',
+        data: { itemName: 'milk' },
+        question: 'How much milk?',
+        sessionId: 'test-456',
+      };
+      
+      const { getByTestId } = renderWithListeningState(
+        <VoiceButton onVoiceCommand={mockOnVoiceCommand} />,
+        'waiting-for-clarification',
+        testPendingAction
+      );
+      const button = getByTestId('voice-button');
+      
+      // Should show clarification (green), not wake word (blue)
+      expect(button.props.style).toContainEqual(
+        expect.objectContaining({ backgroundColor: '#10b981' })
+      );
+    });
+  });
 });

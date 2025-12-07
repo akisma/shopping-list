@@ -39,6 +39,7 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
   const errorColor = '#ef4444';
   const recordingColor = '#ef4444';
   const clarificationColor = '#10b981'; // Green for waiting-for-clarification
+  const wakeWordColor = '#3B82F6'; // Blue for background-wake-word
   
   // Get listening context
   const { listeningMode } = useVoiceListeningContext();
@@ -148,6 +149,8 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
           accessibilityLabel={
             listeningMode === 'waiting-for-clarification'
               ? 'Tap to answer clarification question'
+              : listeningMode === 'background-wake-word'
+              ? 'Voice command button - Wake word detection active'
               : 'Voice command button'
           }
           accessibilityHint={
@@ -162,6 +165,8 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
             isRecording && { backgroundColor: recordingColor },
             listeningMode === 'waiting-for-clarification' &&
               !isRecording && { backgroundColor: clarificationColor },
+            listeningMode === 'background-wake-word' &&
+              !isRecording && { borderWidth: 3, borderColor: wakeWordColor },
             isDisabled && styles.buttonDisabled,
           ]}
         >
@@ -190,6 +195,11 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
         {!isRecording && listeningMode === 'waiting-for-clarification' && (
           <Text style={[styles.holdHint, { color: clarificationColor }]}>
             Tap to answer...
+          </Text>
+        )}
+        {!isRecording && listeningMode === 'background-wake-word' && (
+          <Text style={[styles.holdHint, { color: wakeWordColor }]}>
+            Listening for wake word...
           </Text>
         )}
       </View>

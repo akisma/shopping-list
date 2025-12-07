@@ -226,4 +226,62 @@ describe('VoiceActivationBanner', () => {
       expect(queryByTestId('voice-activation-banner')).toBeNull();
     });
   });
+
+  describe('background wake word mode', () => {
+    it('should show "Listening for Picovoice..." when in background-wake-word mode', () => {
+      const { getByText } = renderWithListeningState(
+        <VoiceActivationBanner visible={true} />,
+        'background-wake-word'
+      );
+      
+      expect(getByText(/Listening for.*Picovoice/i)).toBeTruthy();
+    });
+
+    it('should have blue background in background-wake-word mode', () => {
+      const { getByTestId } = renderWithListeningState(
+        <VoiceActivationBanner visible={true} />,
+        'background-wake-word'
+      );
+      const banner = getByTestId('voice-activation-banner');
+      
+      // Blue background to indicate active listening
+      expect(banner.props.style.backgroundColor).toBe('#E3F2FD');
+    });
+
+    it('should not show "Coming Soon" in background-wake-word mode', () => {
+      const { queryByText } = renderWithListeningState(
+        <VoiceActivationBanner visible={true} />,
+        'background-wake-word'
+      );
+      
+      expect(queryByText(/Coming Soon/i)).toBeNull();
+    });
+
+    it('should show press and hold hint in background-wake-word mode', () => {
+      const { getByText } = renderWithListeningState(
+        <VoiceActivationBanner visible={true} />,
+        'background-wake-word'
+      );
+      
+      expect(getByText(/press and hold/i)).toBeTruthy();
+    });
+
+    it('should show different message than inactive mode', () => {
+      // Test inactive mode first
+      const { queryByText: queryInactive } = renderWithProviders(
+        <VoiceActivationBanner visible={true} />
+      );
+      expect(queryInactive(/Coming Soon/i)).toBeTruthy();
+      
+      // Test background-wake-word mode
+      const { getByText, queryByText } = renderWithListeningState(
+        <VoiceActivationBanner visible={true} />,
+        'background-wake-word'
+      );
+      
+      // Shows active listening message, not "Coming Soon"
+      expect(getByText(/Listening for.*Picovoice/i)).toBeTruthy();
+      expect(queryByText(/Coming Soon/i)).toBeNull();
+    });
+  });
 });
