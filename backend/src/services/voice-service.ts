@@ -207,8 +207,15 @@ export class VoiceService {
    */
   private async transcribeAudio(audioBlob: string): Promise<string> {
     try {
+      // Log audio details
+      const audioBlobLength = audioBlob.length;
+      const audioSizeKB = (audioBlobLength / 1024).toFixed(2);
+      console.log(`[VoiceService] Received audio: ${audioSizeKB} KB (${audioBlobLength} chars base64)`);
+      
       // Convert base64 to buffer
       const buffer = Buffer.from(audioBlob, 'base64');
+      const bufferSizeKB = (buffer.length / 1024).toFixed(2);
+      console.log(`[VoiceService] Audio buffer: ${bufferSizeKB} KB (${buffer.length} bytes)`);
       
       // Create File-like object for OpenAI
       const audioFile = new File([buffer], 'audio.m4a', { type: 'audio/m4a' }) as any;
@@ -218,7 +225,21 @@ export class VoiceService {
         model: OPENAI_CONFIG.whisperModel,
       });
 
-      return response.text;
+      // Strip wake words from the beginning of the transcript
+      // Common wake words: "picovoice", "hey siri", "ok google", "alexa", etc.
+      const wakeWords = ['picovoice', 'pico voice', 'peak of voice'];
+      let transcript = response.text.trim();
+      
+      for (const wakeWord of wakeWords) {
+        // Case-insensitive match at the start of transcript
+        const regex = new RegExp(`^${wakeWord}[,\\s]+`, 'i');
+        transcript = transcript.replace(regex, '');
+      }
+      
+      console.log('[VoiceService] Original transcript:', response.text);
+      console.log('[VoiceService] Cleaned transcript:', transcript);
+
+      return transcript;
     } catch (error) {
       console.error('Audio transcription failed:', error);
       throw new Error(`Audio transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
