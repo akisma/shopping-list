@@ -584,13 +584,22 @@ Physical Device: iPhone (working end-to-end)
 - ✅ Configuration: Rate 0.9, Language en-US, Pitch 1.0
 - ✅ 14 tests for TTS hook, 12 tests for voice commands integration
 
-**Priority 2: Quantity Follow-Up Multi-Turn Conversations** ✅
-- ✅ Implemented session-based pending actions
-- ✅ Added pendingAction field to VoiceSession type
-- ✅ SessionManager methods: setPendingAction(), getPendingAction(), clearPendingAction()
-- ✅ When quantity missing in add_item, asks "How much would you like me to add?"
-- ✅ User's response parsed for quantity and completes the add operation
-- ✅ Flow tested: "add fettucine" → "How much?" → "2 pounds" → "Added 2 pounds fettucine"
+**Priority 2: Multi-Turn Clarification Conversations** ✅
+- ✅ Fixed critical UX bug: System now waits for clarification responses
+- ✅ Implemented VoiceListeningContext with 3 states: inactive, waiting-for-clarification, background-wake-word
+- ✅ 15-second auto-timeout prevents stuck UI
+- ✅ Frontend visual feedback:
+  - VoiceButton: Green (#10b981) with pulsing animation (800ms) in clarification mode
+  - VoiceActivationBanner: Amber (#FFF3CD) shows question with Cancel button
+  - "Tap to answer..." hint text, updated accessibility labels
+- ✅ Backend improvements:
+  - Intent parser recognizes "add X to Y list" pattern, extracts listName
+  - createClarificationResponse() stores pending action when GPT-4 asks for clarification
+  - Looks up lists by name, auto-switches to target list
+  - Uses transcript directly as quantity (skips GPT-4 to avoid "£2" confusion)
+- ✅ Flow tested: "Add chicken to produce list" → "How much chicken?" → "2 pounds" → ✅ Added
+- ✅ All tests passing: 21 VoiceButton, 17 VoiceActivationBanner, 9 Context, 13 use-voice-commands
+- ✅ Documentation: VOICE_CLARIFICATION_FLOW.md with complete architecture guide
 
 **Priority 3: Bug Fixes & UX Improvements** ✅
 - ✅ Fixed shopping list refresh after voice add_item command

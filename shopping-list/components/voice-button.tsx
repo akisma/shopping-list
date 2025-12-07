@@ -42,7 +42,128 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
   const wakeWordColor = '#3B82F6'; // Blue for background-wake-word
   
   // Get listening context
-  const { listeningMode } = useVoiceListeningContext();
+  const { 
+    listeningMode, 
+    isWakeWordActive, 
+    wakeWordCallbackRef,
+    startListeningForClarification,
+    clearPendingAction,
+    setBackgroundWakeWord,
+  } = useVoiceListeningContext();
+
+  // Auto-recording timeout ref
+  const autoRecordTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track if callback is in progress to prevent double triggers
+  const callbackInProgressRef = React.useRef(false);
+
+  // Register wake word callback for auto-recording
+  useEffect(() => {
+    wakeWordCallbackRef.current = async () => {
+      // Prevent multiple triggers if callback already in progress
+      if (callbackInProgressRef.current) {
+        console.log('[VoiceButton] Callback already in progress, ignoring wake word');
+        return;
+      }
+
+      callbackInProgressRef.current = true;
+      const wakeWordTime = Date.now();
+      console.log('[VoiceButton] Wake word callback triggered at', wakeWordTime);
+      
+      try {
+        // Request permission if needed and wait for it
+        if (!hasPermission) {
+          console.log('[VoiceButton] Requesting microphone permission...');
+          const granted = await requestPermission();
+          if (!granted) {
+            console.log('[VoiceButton] Permission denied');
+            setPermissionError('Tap here to enable microphone');
+            callbackInProgressRef.current = false;
+            return;
+          }
+        console.log('[VoiceButton] Permission granted');
+      }
+
+      // CRITICAL: Set waiting-for-clarification mode to prevent Porcupine from restarting
+      // Use a dummy pending action just to keep the mode set
+      console.log('[VoiceButton] Setting clarification mode to prevent Porcupine restart');
+      startListeningForClarification({
+        type: 'recording',
+        data: {},
+        question: 'Recording in progress...',
+        sessionId: `recording-${Date.now()}`,
+      });
+
+      // Start recording IMMEDIATELY to capture as much as possible
+      // Note: We still can't capture audio spoken before this point
+      // Porcupine has stopped by now (stopped in wake word manager)
+        const beforeRecordTime = Date.now();
+        console.log(`[VoiceButton] Starting recording ${beforeRecordTime - wakeWordTime}ms after wake word`);
+        await startRecording();
+      const afterRecordTime = Date.now();
+      console.log(`[VoiceButton] Recording started ${afterRecordTime - wakeWordTime}ms after wake word - listening for 10 seconds`);        // Clear any existing timeout
+        if (autoRecordTimeoutRef.current) {
+          clearTimeout(autoRecordTimeoutRef.current);
+        }
+        
+        // Auto-stop after 6 seconds (enough for full command)
+        autoRecordTimeoutRef.current = setTimeout(async () => {
+          console.log('[VoiceButton] Recording complete - processing command');
+          try {
+            const audioBlob = await stopRecording();
+            console.log('[VoiceButton] Audio captured:', audioBlob ? 'yes' : 'no');
+            if (audioBlob) {
+              const audioBlobLength = audioBlob.length;
+              const audioSizeKB = (audioBlobLength / 1024).toFixed(2);
+              console.log(`[VoiceButton] Audio blob size: ${audioSizeKB} KB (${audioBlobLength} chars base64)`);
+              console.log('[VoiceButton] Sending to voice command handler');
+              onVoiceCommand(audioBlob);
+              
+              // Keep clarification mode active while processing command
+              // It will be cleared by the command handler or timeout
+            } else {
+              console.log('[VoiceButton] No audio captured - recording too short');
+              // Clear clarification mode and re-enable wake word
+              console.log('[VoiceButton] Re-enabling wake word detection');
+              clearPendingAction();
+              setBackgroundWakeWord(true);
+            }
+          } catch (err) {
+            console.error('[VoiceButton] Error stopping recording:', err);
+            // Clear clarification mode and re-enable wake word on error
+            console.log('[VoiceButton] Re-enabling wake word detection after error');
+            clearPendingAction();
+            setBackgroundWakeWord(true);
+          } finally {
+            callbackInProgressRef.current = false;
+          }
+        }, 10000); // 10 seconds to capture command
+      } catch (err) {
+        console.error('[VoiceButton] Error in wake word callback:', err);
+        // Clear clarification mode and re-enable wake word on error
+        console.log('[VoiceButton] Re-enabling wake word detection after callback error');
+        clearPendingAction();
+        setBackgroundWakeWord(true);
+        callbackInProgressRef.current = false;
+      }
+    };
+
+    return () => {
+      wakeWordCallbackRef.current = null;
+      callbackInProgressRef.current = false;
+      if (autoRecordTimeoutRef.current) {
+        clearTimeout(autoRecordTimeoutRef.current);
+      }
+    };
+  }, [
+    hasPermission, 
+    requestPermission, 
+    startRecording, 
+    stopRecording, 
+    onVoiceCommand,
+    startListeningForClarification,
+    clearPendingAction,
+    setBackgroundWakeWord,
+  ]);
 
   // Pulsing animation for waiting-for-clarification mode
   useEffect(() => {
@@ -165,7 +286,7 @@ export function VoiceButton({ onVoiceCommand, disabled = false, processing = fal
             isRecording && { backgroundColor: recordingColor },
             listeningMode === 'waiting-for-clarification' &&
               !isRecording && { backgroundColor: clarificationColor },
-            listeningMode === 'background-wake-word' &&
+            (listeningMode === 'background-wake-word' || isWakeWordActive) &&
               !isRecording && { borderWidth: 3, borderColor: wakeWordColor },
             isDisabled && styles.buttonDisabled,
           ]}

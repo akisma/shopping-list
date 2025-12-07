@@ -3,7 +3,7 @@
  * Main screen displaying all shopping lists
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -56,14 +56,14 @@ export default function ShoppingListsScreen() {
   const [voiceActivationEnabled] = useState(true);
 
   // Handle voice command
-  const handleVoice = async (audioBlob: string) => {
+  const handleVoice = useCallback(async (audioBlob: string) => {
     const result = await handleVoiceCommand(audioBlob);
     
     // If voice command created a list or added an item, refetch to show updated counts
     if (result.success && (result.action === 'create_list' || result.action === 'add_item')) {
       await refetch();
     }
-  };
+  }, [handleVoiceCommand, refetch]);
 
   // Handle create list
   const handleCreateList = () => {

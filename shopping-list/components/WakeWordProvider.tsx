@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWakeWordManager } from '@/hooks/use-wake-word-manager';
+import { useVoiceListeningContext } from '@/hooks/use-voice-listening-context';
 import { BuiltInKeywords } from '@picovoice/porcupine-react-native';
 
 interface WakeWordProviderProps {
@@ -13,6 +14,7 @@ interface WakeWordProviderProps {
 }
 
 export function WakeWordProvider({ children }: WakeWordProviderProps) {
+  const { setWakeWordActive, wakeWordCallbackRef } = useVoiceListeningContext();
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
   const [sensitivity, setSensitivity] = useState(0.5);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -83,9 +85,13 @@ export function WakeWordProvider({ children }: WakeWordProviderProps) {
     keyword: BuiltInKeywords.PICOVOICE,
     sensitivity,
     onWakeWordDetected: () => {
-      console.log('[WakeWordProvider] Wake word detected - user can now speak');
-      // The wake word detection automatically transitions the context to inactive
-      // User can then press and hold the voice button to record
+      console.log('[WakeWordProvider] Wake word detected - triggering auto-recording');
+      // Set wake word active for visual feedback (blue banner, blue border)
+      setWakeWordActive(true);
+      // Trigger callback to start recording
+      if (wakeWordCallbackRef.current) {
+        wakeWordCallbackRef.current();
+      }
     },
   });
 

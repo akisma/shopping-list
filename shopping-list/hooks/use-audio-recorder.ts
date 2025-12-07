@@ -74,21 +74,32 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     try {
       setError(null);
 
-      if (!hasPermission) {
-        setError('Microphone permission not granted');
+      // Guard: Don't start if already recording
+      if (recorderState.isRecording) {
+        console.log('[useAudioRecorder] Already recording - ignoring start request');
         return;
       }
 
-      // Configure audio mode for recording
+      // Note: Don't check hasPermission here because it may not be updated yet
+      // Caller should check permission before calling this
+      console.log('[useAudioRecorder] Starting recording...');
+      
+      // Configure audio mode for recording - be very explicit about settings
+      console.log('[useAudioRecorder] Configuring audio mode...');
       await setAudioModeAsync({
         playsInSilentMode: true,
         allowsRecording: true,
+        shouldPlayInBackground: false,
       });
 
       // Prepare and start recording
+      console.log('[useAudioRecorder] Preparing to record...');
       await audioRecorder.prepareToRecordAsync();
+      console.log('[useAudioRecorder] Starting record...');
       audioRecorder.record();
       startDurationTracking();
+      
+      console.log('[useAudioRecorder] Recording started successfully - microphone should be active');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start recording');
       stopDurationTracking();
@@ -102,6 +113,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       // Capture the state BEFORE stopping - getStatus() returns stale data after stop()
       const recordingDurationMs = recorderState.durationMillis;
       const uri = recorderState.url;
+      
+      console.log(`[useAudioRecorder] Stopping recording - duration: ${recordingDurationMs}ms, uri: ${uri}`);
 
       // Stop recording
       await audioRecorder.stop();
@@ -109,11 +122,13 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
       // Check recording duration - need at least 0.3 seconds for meaningful audio
       if (recordingDurationMs < 300) {
+        console.log(`[useAudioRecorder] Recording too short: ${recordingDurationMs}ms < 300ms`);
         setError('Recording too short - please hold the button longer');
         return null;
       }
 
       if (!uri) {
+        console.log('[useAudioRecorder] No recording URI available');
         setError('No recording URI available - recording may not have captured any audio');
         return null;
       }
@@ -121,6 +136,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       // Read file as base64 using new File API
       const file = new File(uri);
       const base64Audio = await file.base64();
+      const audioSizeKB = (base64Audio.length / 1024).toFixed(2);
+      console.log(`[useAudioRecorder] Read audio file: ${audioSizeKB} KB (${base64Audio.length} chars base64)`);
       return base64Audio;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to stop recording';

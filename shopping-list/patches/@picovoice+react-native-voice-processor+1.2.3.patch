@@ -1,0 +1,31 @@
+diff --git a/node_modules/@picovoice/react-native-voice-processor/react-native-voice-processor.podspec b/node_modules/@picovoice/react-native-voice-processor/react-native-voice-processor.podspec
+index 9529917..03cceba 100644
+--- a/node_modules/@picovoice/react-native-voice-processor/react-native-voice-processor.podspec
++++ b/node_modules/@picovoice/react-native-voice-processor/react-native-voice-processor.podspec
+@@ -28,7 +28,8 @@ Pod::Spec.new do |s|
+         "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
+     }
+     s.dependency "React-Codegen"
+-    s.dependency "RCT-Folly"
++    # Commented out RCT-Folly as it's already provided by React Native
++    # s.dependency "RCT-Folly"
+     s.dependency "RCTRequired"
+     s.dependency "RCTTypeSafety"
+     s.dependency "ReactCommon/turbomodule/core"
+diff --git a/node_modules/@picovoice/react-native-voice-processor/react-native-voice-processor.podspec.patch b/node_modules/@picovoice/react-native-voice-processor/react-native-voice-processor.podspec.patch
+new file mode 100644
+index 0000000..64cdc35
+--- /dev/null
++++ b/node_modules/@picovoice/react-native-voice-processor/react-native-voice-processor.podspec.patch
+@@ -0,0 +1,11 @@
++--- a/react-native-voice-processor.podspec
+++++ b/react-native-voice-processor.podspec
++@@ -22,7 +22,7 @@ Pod::Spec.new do |s|
++       "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
++   }
++   s.dependency "React-Codegen"
++-  s.dependency "RCT-Folly"
+++  s.dependency "RCT-Folly", "~> 2024.01.01.00"
++   s.dependency "RCTRequired"
++   s.dependency "RCTTypeSafety"
++   s.dependency "ReactCommon/turbomodule/core"

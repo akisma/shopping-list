@@ -114,18 +114,22 @@ export function useWakeWordDetection({
    * Stop wake word detection
    */
   const stopListening = useCallback(async () => {
-    if (!porcupineManagerRef.current) {
+    const manager = porcupineManagerRef.current;
+    if (!manager) {
       return;
     }
 
     try {
-      await porcupineManagerRef.current.stop();
-      await porcupineManagerRef.current.delete();
+      await manager.stop();
+      if (porcupineManagerRef.current) {
+        await porcupineManagerRef.current.delete();
+      }
       porcupineManagerRef.current = null;
       setIsListening(false);
       console.log('[WakeWord] Stopped listening');
     } catch (err) {
       console.error('[WakeWord] Failed to stop:', err);
+      porcupineManagerRef.current = null;
     }
   }, []);
 

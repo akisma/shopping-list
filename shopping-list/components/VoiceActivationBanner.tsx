@@ -12,7 +12,7 @@ interface VoiceActivationBannerProps {
 }
 
 export function VoiceActivationBanner({ visible }: VoiceActivationBannerProps) {
-  const { listeningMode, pendingAction, clearPendingAction } = useVoiceListeningContext();
+  const { listeningMode, pendingAction, clearPendingAction, isWakeWordActive } = useVoiceListeningContext();
 
   if (!visible) {
     return null;
@@ -37,12 +37,23 @@ export function VoiceActivationBanner({ visible }: VoiceActivationBannerProps) {
     );
   }
 
+  // Show wake word detected banner (3-second flash)
+  if (isWakeWordActive) {
+    return (
+      <View testID="voice-activation-banner" style={styles.wakeWordBanner}>
+        <Text style={styles.wakeWordText}>
+          🎤 Ready! Speak your command now
+        </Text>
+      </View>
+    );
+  }
+
   // Show active wake word banner when in background-wake-word mode
   if (listeningMode === 'background-wake-word') {
     return (
       <View testID="voice-activation-banner" style={styles.wakeWordBanner}>
         <Text style={styles.wakeWordText}>
-          🎤 Listening for "Picovoice" - or press and hold to speak
+          🎤 Say "Picovoice" + your command
         </Text>
       </View>
     );

@@ -177,22 +177,6 @@ export default function SettingsScreen() {
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingTitle}>Enable Voice Activation</Text>
-            <Text style={styles.settingDescription}>
-              Say &ldquo;Hey Shoppy&rdquo; to activate
-            </Text>
-            <Text style={styles.comingSoon}>(Coming in Task 4)</Text>
-          </View>
-          <Switch
-            testID="voice-activation-toggle"
-            value={voiceActivationEnabled}
-            onValueChange={handleVoiceActivationToggle}
-            disabled={true}
-          />
-        </View>
-
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
             <Text style={styles.settingTitle}>Voice Button on Lists</Text>
             <Text style={styles.settingDescription}>
               Tap microphone button

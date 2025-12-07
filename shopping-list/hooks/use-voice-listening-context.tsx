@@ -12,6 +12,9 @@ export interface PendingActionData {
 interface VoiceListeningContextValue {
   listeningMode: ListeningMode;
   pendingAction: PendingActionData | null;
+  isWakeWordActive: boolean;
+  setWakeWordActive: (active: boolean) => void;
+  wakeWordCallbackRef: React.MutableRefObject<(() => void) | null>;
   startListeningForClarification: (pendingAction: PendingActionData) => void;
   clearPendingAction: () => void;
   setBackgroundWakeWord: (enabled: boolean) => void;
@@ -28,6 +31,8 @@ interface VoiceListeningProviderProps {
 export function VoiceListeningProvider({ children }: VoiceListeningProviderProps) {
   const [listeningMode, setListeningMode] = useState<ListeningMode>('inactive');
   const [pendingAction, setPendingAction] = useState<PendingActionData | null>(null);
+  const [isWakeWordActive, setIsWakeWordActive] = useState(false);
+  const wakeWordCallbackRef = useRef<(() => void) | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearPendingAction = useCallback(() => {
@@ -61,9 +66,20 @@ export function VoiceListeningProvider({ children }: VoiceListeningProviderProps
     }
   }, [listeningMode]);
 
+  const setWakeWordActive = useCallback((active: boolean) => {
+    setIsWakeWordActive(active);
+    // Auto-clear after 3 seconds
+    if (active) {
+      setTimeout(() => setIsWakeWordActive(false), 3000);
+    }
+  }, []);
+
   const value: VoiceListeningContextValue = {
     listeningMode,
     pendingAction,
+    isWakeWordActive,
+    setWakeWordActive,
+    wakeWordCallbackRef,
     startListeningForClarification,
     clearPendingAction,
     setBackgroundWakeWord,
