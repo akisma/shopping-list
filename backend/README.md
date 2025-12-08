@@ -362,13 +362,118 @@ See [TECHNICAL_DOCUMENTATION.md](../.docs/TECHNICAL_DOCUMENTATION.md#database-sc
 - **UUID v4** for all primary keys
 - **ISO 8601** timestamps
 
+### Voice Command API
+
+The backend provides voice command processing using OpenAI Whisper (speech-to-text) and GPT-4 (intent parsing).
+
+#### Environment Variables
+
+Create a `.env` file with:
+
+```bash
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_MODEL_WHISPER=whisper-1
+OPENAI_MODEL_GPT=gpt-4-turbo-preview
+
+# Voice Configuration
+VOICE_MAX_AUDIO_SECONDS=30
+VOICE_SESSION_TIMEOUT_MINUTES=5
+
+# Rate Limiting
+VOICE_RATE_LIMIT_PER_MINUTE=30
+VOICE_RATE_LIMIT_PER_DAY=1000
+```
+
+#### Process Voice Command
+
+```bash
+POST /api/voice/command
+Content-Type: application/json
+
+{
+  "audioBlob": "base64_encoded_audio_data",
+  "sessionId": "optional-session-uuid"
+}
+```
+
+**Rate Limit:** 30 requests per minute
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "action": "create_list",
+  "ttsText": "I've created a list called produce.",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "listId": "660e8400-e29b-41d4-a716-446655440001",
+    "listName": "produce"
+  }
+}
+```
+
+**Supported Actions:**
+- `create_list` - Create a new shopping list
+- `add_item` - Add item to current list
+- `remove_item` - Remove item from current list
+- `send_list` - Send list to manager
+- `query_lists` - Get all lists
+- `clarification` - Needs more information
+
+**Voice Command Examples:**
+- "Create a list called produce"
+- "Add tomatoes"
+- "Add three cases of onions"
+- "Remove the garlic"
+- "Send this list"
+- "Show my lists"
+
+#### Session Management
+
+**Create Session:**
+```bash
+POST /api/voice/session
+Content-Type: application/json
+
+{
+  "userId": "optional-user-id"
+}
+```
+
+**Response (201):**
+```json
+{
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "expiresAt": "2025-11-25T20:05:00.000Z"
+}
+```
+
+**Get Session:**
+```bash
+GET /api/voice/session/:sessionId
+```
+
+**Delete Session:**
+```bash
+DELETE /api/voice/session/:sessionId
+```
+
+**Rate Limit:** 10 requests per minute for session operations
+
+**Session Features:**
+- 5-minute timeout
+- Context retention (last 5 commands)
+- Current list tracking
+- Automatic cleanup of expired sessions
+
 ### Future Enhancements
 
-- Swagger/OpenAPI documentation (Task 4)
+- Swagger/OpenAPI documentation
 - JWT authentication (Task 8)
 - PostgreSQL migration (production)
-- Rate limiting & security headers
 - Request tracing & monitoring
+- Voice analytics & usage metrics
 
 ## License
 

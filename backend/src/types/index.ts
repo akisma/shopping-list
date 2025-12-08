@@ -102,3 +102,66 @@ export interface IDatabase {
   updateReminder(id: string, data: Partial<Omit<Reminder, 'id' | 'createdAt'>>): boolean;
   deleteReminder(id: string): boolean;
 }
+
+// Voice API types
+export interface VoiceCommandRequest {
+  audioBlob: string; // Base64 encoded audio
+  sessionId?: string;
+}
+
+export interface VoiceCommandResponse {
+  success: boolean;
+  action: 'create_list' | 'add_item' | 'remove_item' | 'send_list' | 'query_lists' | 'clarification' | 'error';
+  data?: any;
+  ttsText: string;
+  sessionId: string;
+  error?: string;
+}
+
+export interface VoiceSession {
+  id: string;
+  userId?: string;
+  currentListId?: string;
+  context: VoiceCommand[];
+  pendingAction?: {
+    action: string;
+    entities: Record<string, any>;
+  };
+  createdAt: Date;
+  lastActivityAt: Date;
+}
+
+export interface VoiceCommand {
+  timestamp: Date;
+  transcript: string;
+  intent: string;
+  action: string;
+  result?: any;
+}
+
+export interface CreateSessionResponse {
+  sessionId: string;
+  expiresAt: string;
+}
+
+export interface SessionContext {
+  sessionId: string;
+  currentListId?: string;
+  lastCommands: VoiceCommand[];
+  createdAt: string;
+  expiresAt: string;
+}
+
+// Intent parsing types
+export interface ParsedIntent {
+  action: 'create_list' | 'add_item' | 'remove_item' | 'send_list' | 'query_lists' | 'clarification' | 'unknown';
+  confidence: number;
+  entities: {
+    listName?: string;
+    itemName?: string;
+    quantity?: string;
+    listId?: string;
+  };
+  requiresClarification: boolean;
+  clarificationQuestion?: string;
+}

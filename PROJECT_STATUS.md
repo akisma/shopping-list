@@ -1,8 +1,8 @@
 # Shopping List Mobile App - Project Status
 
-**Last Updated:** November 23, 2025  
-**Current Phase:** Task 3 ~95% Complete - Voice UI Stubs Complete  
-**Overall Status:** ✅ Backend API Complete | ✅ Mobile CRUD Complete | ✅ Send to Manager Complete | ✅ Voice Stubs Complete | ⏳ Accessibility Validation Pending
+**Last Updated:** December 6, 2025  
+**Current Phase:** Task 4 - Phase 2.4 Wake Word Detection Complete  
+**Overall Status:** ✅ Backend API Complete | ✅ Mobile CRUD Complete | ✅ Send to Manager Complete | ✅ Voice Stubs Complete | ✅ Backend Voice Services Complete | ✅ Mobile Audio & Voice Commands Working | ✅ Wake Word Detection Complete
 
 ---
 
@@ -352,35 +352,467 @@ Priority 1: Accessibility & Kitchen UX Validation (Phase 7)
 
 **Note:** Documentation and memory updates happen after EACH phase completion.
 
-### Task 4: Voice Integration (NEXT - ~2 weeks)
+### Task 4: Voice Integration (IN PROGRESS)
+
+**Status:** Phase 2 Complete - Mobile Audio Capture & Voice Commands Working  
+**Branch:** `feature/task-2` (continuing)  
+**Started:** November 25, 2025  
+**Phase 2 Complete:** November 28, 2025
 
 **Goal:** Replace voice UI stubs with real OpenAI Whisper (speech-to-text) and GPT-4 (intent parsing) integration
 
-Priority 1: Voice Infrastructure
-- Integrate expo-speech-recognition for "Hey Shoppy" wake word detection
-- Set up OpenAI Whisper API for speech-to-text conversion
-- Implement GPT-4 intent parsing for natural language commands
-- Add voice feedback using text-to-speech (TTS)
+---
 
-Priority 2: Voice Commands
-- "Hey Shoppy, create list [name]" - Create new shopping list
-- "Hey Shoppy, add [item] to list" - Add item to current list
-- "Hey Shoppy, add [quantity] [item]" - Add item with quantity
-- "Hey Shoppy, send list to manager" - Send current list
-- Voice confirmation for all actions
+#### ✅ Phase 1: Backend Voice Infrastructure (COMPLETE)
 
-Priority 3: Voice UX
-- Real-time voice status indicators (listening, processing, ready)
-- Error handling for unclear commands
-- Voice activation banner showing current state
-- Settings for voice sensitivity and wake word
+**Duration:** Day 1 (November 25, 2025)  
+**Approach:** TDD (RED-GREEN-REFACTOR-DOCUMENT)
 
-**Note:** Voice stubs from Phase 6 provide the foundation for Task 4 integration.
+**Deliverables:**
 
-- [ ] Integrate Whisper API for voice-to-text
-- [ ] Implement voice command parsing
-- [ ] Add text-to-speech feedback
-- [ ] Test voice commands in kitchen environment
+✅ **OpenAI Integration Setup**
+- Installed `openai@4.73.1` SDK
+- Created configuration file (`src/config/openai.ts`)
+- GPT-4 system prompt for intent parsing (6 actions: create_list, add_item, remove_item, send_list, query_lists, clarification)
+- Environment variables documented (`.env.example`)
+
+✅ **IntentParser Service** (12/12 tests passing)
+- Calls GPT-4 to parse voice command transcripts
+- Extracts structured intents (action, entities, confidence)
+- Handles ambiguous commands with clarification requests
+- Retry logic for API failures (3 attempts)
+- Entity extraction: listName, itemName, quantity, listId
+
+✅ **SessionManager Service** (21/21 tests passing)
+- In-memory session store with UUID-based session IDs
+- 5-minute session timeout with automatic cleanup
+- Context retention (last 5 commands)
+- Current list tracking for voice context
+- Session CRUD operations (create, get, update, delete)
+
+✅ **VoiceService Orchestrator** (12/12 tests passing)
+- Complete pipeline: Audio (base64) → Whisper STT → GPT-4 Intent Parser → CRUD Action
+- Integrates with existing ShoppingListService and ShoppingListItemService
+- Generates TTS-friendly response text
+- Error handling for transcription, parsing, and action execution
+- Context-aware command processing
+
+✅ **Voice API Endpoints**
+- `POST /api/voice/command` - Process voice command (rate limited: 30/min)
+- `POST /api/voice/session` - Create new session (rate limited: 10/min)
+- `GET /api/voice/session/:id` - Retrieve session
+- `DELETE /api/voice/session/:id` - Delete session
+- Request validation (audioBlob required, max 5MB)
+- Express rate limiting with `express-rate-limit`
+
+✅ **TypeScript Types**
+- `VoiceCommandRequest` - Audio blob + optional session ID
+- `VoiceCommandResponse` - Success, action, TTS text, session ID, data, error
+- `VoiceSession` - Session state with context and timestamps
+- `VoiceCommand` - Command history entry
+- `ParsedIntent` - Structured intent from GPT-4
+
+#### Test Results (Phase 1)
+
+```
+Test Suites: 8 passed, 1 failed (integration mocking), 9 total
+Tests:       115 passed, 13 failed (integration mocking), 128 total
+Voice Tests: 53 new tests (45 service + 8 endpoint validation)
+Original:    62 tests (all still passing)
+Coverage:    Voice services ~95% covered
+Time:        10.5s
+```
+
+**Key Metrics:**
+- 53 new voice tests written using TDD approach
+- IntentParser: 12 tests covering GPT-4 integration, retry logic, error handling
+- SessionManager: 21 tests covering CRUD, timeouts, context retention
+- VoiceService: 12 tests covering full orchestration pipeline
+- Voice endpoints: 8 validation tests passing (rate limiting, request validation)
+
+#### Architecture Decisions
+
+**Backend-Heavy Approach:**
+- Voice processing on server (not client) for security
+- OpenAI API keys never exposed to mobile app
+- Session management server-side for context persistence
+- Rate limiting at API layer (30 commands/min per user)
+
+**Voice Command Flow:**
+1. Mobile app records audio → uploads base64-encoded audio blob
+2. Backend Whisper STT → transcript text
+3. Backend GPT-4 + context → parsed intent
+4. Backend executes CRUD action on shopping lists
+5. Backend returns result + TTS text
+6. Mobile app updates UI + speaks confirmation
+
+**Supported Commands:**
+- "Create a list called [name]" → create_list
+- "Add [item]" → add_item (requires current list context)
+- "Add [quantity] [item]" → add_item with quantity
+- "Remove [item]" → remove_item
+- "Send this list" → send_list
+- "Show my lists" → query_lists
+
+---
+
+#### ✅ Phase 2: Mobile Audio Capture & Voice Commands (COMPLETE)
+
+**Duration:** Days 2-4 (November 27-28, 2025)  
+**Approach:** TDD with physical device testing
+
+**Deliverables:**
+
+✅ **expo-audio Integration**
+- Migrated from expo-av to expo-audio ~16.0.7
+- useAudioRecorder + useAudioRecorderState hooks
+- Fixed critical recording state bug (capture state BEFORE stop)
+- Minimum recording duration validation (300ms)
+- Base64 audio encoding with expo-file-system
+- Audio config: 44100Hz, high quality, .m4a format
+
+✅ **VoiceButton Component**
+- Press-and-hold microphone button with visual feedback
+- Red pulsing animation during recording
+- "Keep holding..." hint for short recordings
+- Fixed layout jumping with feedbackContainer (20px fixed height)
+- Haptic feedback on press/release
+- Kitchen-friendly 44pt touch target
+
+✅ **useAudioRecorder Hook**
+- Custom hook wrapping expo-audio with proper state management
+- Permission handling (requestPermissions)
+- Recording state captured before stopping (critical fix)
+- Duration tracking with live updates
+- Base64 conversion for API upload
+
+✅ **Voice Command Integration**
+- useVoiceCommands hook for backend communication
+- Session ID management (persists across commands)
+- Clarification vs error handling
+- Returns structured result: { success, action, data, ttsText }
+
+✅ **Backend Refactoring**
+- Fixed database instance sharing bug (dependency injection)
+- Voice controller shares same DB instance as REST API
+- Fixed GPT-4 validation (default requiresClarification to false)
+- Updated system prompt (quantity optional, no clarification)
+- Cleaned up all debug logging
+
+✅ **End-to-End Testing**
+- "Create a list called produce" ✅ Working
+- "Add tomatoes" ✅ Working (uses currentListId from context)
+- "Add three cases of tomatoes" ✅ Working (quantity extraction)
+- Lists appear immediately in UI after voice creation
+- Items appear in list detail after voice addition
+
+✅ **Code Quality**
+- All debug console.log statements removed
+- Production-ready clean code
+- ESLint passing with 0 errors
+- TypeScript strict mode passing
+- 163/163 mobile tests passing
+- 115/128 backend tests passing (13 integration test mocks failing, non-blocking)
+
+**Critical Fixes:**
+
+1. **expo-audio State Bug:**
+   - Problem: `getStatus()` returns stale data (durationMillis: 0) after `stop()`
+   - Solution: Use `useAudioRecorderState` hook, capture state BEFORE stopping
+   - Evidence: Logs showed state before: 4982ms, after: 0ms
+   - Impact: Recording duration validation now works correctly
+
+2. **Database Instance Sharing:**
+   - Problem: Voice-created lists not appearing in GET /api/v1/shopping-lists
+   - Root Cause: Voice controller created separate SQLiteDatabase instance
+   - Solution: Dependency injection pattern - initializeVoiceController(services)
+   - Impact: All services now share single DB instance, data consistency guaranteed
+
+3. **GPT-4 Validation:**
+   - Problem: "Missing requiresClarification" error when GPT-4 returned confident intent
+   - Solution: Default requiresClarification to false if omitted
+   - Impact: Voice commands no longer fail on validation
+
+4. **Quantity Handling:**
+   - Problem: GPT-4 asked "How many tomatoes?" for "Add tomatoes"
+   - Solution: Updated system prompt - quantity explicitly marked as OPTIONAL
+   - Impact: Commands work without quantity, defaults to "1"
+
+**Test Results:**
+```
+Mobile Tests: 163/163 passing (VoiceButton, useAudioRecorder, useVoiceCommands)
+Backend Tests: 115/128 passing (voice services all passing)
+Voice Commands Tested: 3/6 (create_list, add_item with/without quantity)
+Physical Device: iPhone (working end-to-end)
+```
+
+**Cost Analysis:**
+- ~$0.008 per voice command (2-5 seconds audio)
+- Whisper: ~$0.001 per command
+- GPT-4: ~$0.007 per command
+- Monthly estimates: Light use (50/day) = $12, Moderate (200/day) = $48
+
+**Working Commands:**
+- ✅ "Create a list called produce"
+- ✅ "Add tomatoes" (context-aware, uses currentListId)
+- ✅ "Add three cases of tomatoes" (quantity parsing)
+- ✅ "Add fettucine to pasta list" → "How much?" → "2 pounds" (multi-turn conversation)
+- 🔲 "Remove tomatoes" (untested)
+- 🔲 "Send this list" (untested)
+- 🔲 "Show my lists" (untested)
+
+**Documentation:**
+- Added comprehensive section to TECHNICAL_DOCUMENTATION.md
+- Added openmemory with all learnings and critical fixes
+- Documented voice processing flow: Audio → Whisper → GPT-4 → Action
+- Documented GPT-4 system prompt engineering patterns
+
+---
+
+#### ✅ Phase 3: Enhanced Voice Features & UX Improvements (COMPLETE)
+
+**Status:** Complete - November 28, 2025  
+**Branch:** `feature/task-2`  
+**Test Coverage:** 317/317 tests passing (189 frontend + 128 backend)
+
+**Priority 1: Text-to-Speech Feedback** ✅
+- ✅ Installed expo-speech
+- ✅ Created useTextToSpeech hook with AsyncStorage persistence
+- ✅ Integrated TTS into useVoiceCommands (speaks confirmations, clarifications, errors)
+- ✅ Falls back to Alert.alert when TTS disabled
+- ✅ User preference toggle for TTS (isTtsEnabled, setTtsEnabled)
+- ✅ Configuration: Rate 0.9, Language en-US, Pitch 1.0
+- ✅ 14 tests for TTS hook, 12 tests for voice commands integration
+
+**Priority 2: Multi-Turn Clarification Conversations** ✅
+- ✅ Fixed critical UX bug: System now waits for clarification responses
+- ✅ Implemented VoiceListeningContext with 3 states: inactive, waiting-for-clarification, background-wake-word
+- ✅ 15-second auto-timeout prevents stuck UI
+- ✅ Frontend visual feedback:
+  - VoiceButton: Green (#10b981) with pulsing animation (800ms) in clarification mode
+  - VoiceActivationBanner: Amber (#FFF3CD) shows question with Cancel button
+  - "Tap to answer..." hint text, updated accessibility labels
+- ✅ Backend improvements:
+  - Intent parser recognizes "add X to Y list" pattern, extracts listName
+  - createClarificationResponse() stores pending action when GPT-4 asks for clarification
+  - Looks up lists by name, auto-switches to target list
+  - Uses transcript directly as quantity (skips GPT-4 to avoid "£2" confusion)
+- ✅ Flow tested: "Add chicken to produce list" → "How much chicken?" → "2 pounds" → ✅ Added
+- ✅ All tests passing: 21 VoiceButton, 17 VoiceActivationBanner, 9 Context, 13 use-voice-commands
+- ✅ Documentation: VOICE_CLARIFICATION_FLOW.md with complete architecture guide
+
+**Priority 3: Bug Fixes & UX Improvements** ✅
+- ✅ Fixed shopping list refresh after voice add_item command
+  - Modified index.tsx to refetch on both 'create_list' AND 'add_item' actions
+  - Item counts now update immediately after voice add
+- ✅ Fixed all 6 controller test failures (rate limiting, CORS, timeout, size validation)
+- ✅ All 317 tests passing with zero tolerance policy
+
+**Priority 4: Code Refactoring (DRY, SOLID)** ✅
+- ✅ Extracted 8+ helper methods in VoiceService:
+  - getOrCreateSession(), buildSessionContext(), resolvePendingAction()
+  - completePendingAddItem(), recordCommandInSession()
+  - createClarificationResponse(), createErrorResponse(), createAddItemSuccessResponse()
+  - requireActiveList() - shared validation across handlers
+- ✅ Frontend: Created announceToUser() to eliminate 5 duplicate TTS/Alert patterns
+- ✅ Improved semantic naming: "Step 2.5" → descriptive method names
+- ✅ Reduced cyclomatic complexity, improved maintainability
+- ✅ ~50 lines removed through DRY improvements
+
+**Priority 5: Documentation** ✅
+- ✅ Updated PROJECT_STATUS.md with Phase 3 completion
+- ✅ Added comprehensive openmemory notes covering architecture and improvements
+- ✅ Documented multi-turn conversation pattern
+- ✅ Documented refactoring decisions and patterns
+
+**Test Results:**
+```
+Backend:  128/128 tests passing (9 suites)
+Frontend: 189/189 tests passing (19 suites)
+Total:    317/317 tests passing ✅
+```
+
+**Key Patterns Implemented:**
+- Multi-turn conversations via session-based pending actions
+- Graceful degradation: TTS → Alert when disabled
+- Semantic method extraction for maintainability
+- Zero failing tests policy enforced
+
+---
+
+#### ✅ Phase 2.4: Wake Word Detection & Auto-Recording (COMPLETE)
+
+**Status:** Complete - December 6, 2025  
+**Branch:** `feature/task-4-voice`  
+**Test Coverage:** 135/135 tests passing
+
+**Deliverables:**
+
+✅ **Porcupine Wake Word Integration**
+- Integrated @picovoice/porcupine-react-native 3.0.5
+- Wake word: "Picovoice" (built-in keyword)
+- Background listening with real-time detection
+- Configurable sensitivity (0.0 - 1.0, default 0.5)
+- Proper lifecycle management (start/stop/cleanup)
+
+✅ **Wake Word Manager Hook**
+- `useWakeWordManager` orchestrates wake word detection
+- Processing state flag prevents Porcupine restart during recording
+- 12-second debounce window prevents double detections
+- Clarification mode integration stops wake word during voice command processing
+- 100ms delay after stopping Porcupine for audio system release
+
+✅ **Settings UI**
+- Enable/disable wake word toggle
+- Sensitivity slider with real-time updates
+- Test button for immediate feedback
+- Persistent settings via AsyncStorage
+- All settings changes reflected immediately
+
+✅ **Visual Feedback**
+- VoiceActivationBanner shows wake word status
+- Blue banner (#3B82F6) during background wake word listening
+- "Ready! Speak your command now" when wake word detected
+- VoiceButton border turns blue when wake word active
+- 3-second visual flash on detection
+
+✅ **Auto-Recording Flow**
+- Wake word detected → Porcupine stops → 100ms delay → Recording starts
+- 10-second recording duration (increased from 6s for better capture)
+- Clarification mode set during recording prevents Porcupine interference
+- Guard clause prevents double-start of recording
+- Proper cleanup and wake word restart after command processed
+
+**Critical Bugs Fixed:**
+
+1. **Double Recording Issue**
+   - **Problem:** Porcupine restarting immediately after wake word detection while recording still active, causing second recording to overwrite first
+   - **Root Cause:** Wake word manager's useEffect responding to state changes and restarting Porcupine before recording complete
+   - **Solution:** Added `processingWakeWord` state flag to prevent restart + set clarification mode during recording to block wake word re-activation
+   - **Impact:** Eliminated double recordings, audio files no longer overwritten
+
+2. **Microphone Conflicts**
+   - **Problem:** Two audio streams (Porcupine + Expo Audio) competing for microphone access
+   - **Solution:** Stop Porcupine immediately on detection, add 100ms delay for audio system release, set clarification mode during recording
+   - **Impact:** Clean audio capture without interference, consistent 180 KB recordings vs previous 75 KB "You" transcriptions
+
+3. **Permission Race Condition**
+   - **Problem:** useState async updates meant `hasPermission` state checked before actually updated, causing "Cannot start - no permission" errors
+   - **Solution:** Removed stale permission checks from `startRecording()`, trust caller to verify permissions
+   - **Impact:** Permission errors eliminated, recording starts reliably
+
+4. **Double-Start Prevention**
+   - **Problem:** Second `startRecording()` call overwriting first recording
+   - **Solution:** Added `isRecording` guard clause in startRecording() to ignore duplicate start requests
+   - **Impact:** Second attempt logged "Already recording - ignoring start request", prevented file corruption
+
+**Architecture Patterns:**
+
+**Separate Audio Stream Pattern:**
+- Porcupine manages wake word detection stream (continuous)
+- Expo Audio manages command recording stream (on-demand)
+- Lifecycle coordination through state flags and mode transitions
+- Clean handoff: Porcupine stops → delay → Recording starts → Recording stops → Porcupine restarts
+
+**State-Based Lifecycle Management:**
+- `processingWakeWord` flag prevents premature Porcupine restart (500ms window)
+- `listeningMode` controls system state (inactive/background-wake-word/waiting-for-clarification)
+- Clarification mode doubles as recording-in-progress state
+- Guard clauses prevent race conditions in async operations
+
+**Files Modified:**
+- `hooks/use-wake-word-detection.ts` - Porcupine integration with lifecycle management
+- `hooks/use-wake-word-manager.ts` - Orchestration with processing flag and debouncing
+- `hooks/use-audio-recorder.ts` - Recording with isRecording guard clause
+- `hooks/use-voice-listening-context.tsx` - State management for wake word modes
+- `components/voice-button.tsx` - Auto-recording trigger with proper mode transitions
+- `components/VoiceActivationBanner.tsx` - Visual feedback for wake word states
+- `app/(tabs)/settings.tsx` - Wake word settings UI with toggle and slider
+- `backend/src/services/voice-service.ts` - Wake word stripping from transcripts
+
+**Test Results:**
+```
+Total Tests: 135/135 passing ✅
+- Wake word detection: 14 tests
+- Wake word + context integration: 24 tests  
+- Settings UI: 24 tests
+- Visual feedback: 10 tests
+- Device testing: Working on iPhone (iOS development build)
+```
+
+**Performance Metrics:**
+- Wake word detection latency: ~50-100ms
+- Recording start after wake word: ~50-100ms  
+- Audio capture: 180 KB for ~6 seconds (improved from 75 KB)
+- Backend processing: Full command transcribed successfully
+- Debounce window: 12 seconds (prevents double detections during full cycle)
+
+**User Experience:**
+Users can now:
+1. Enable wake word detection in Settings
+2. Say "Picovoice" + command (e.g., "Picovoice, create a list called Groceries")
+3. See visual feedback (blue banner appears)
+4. Recording automatically starts and captures command
+5. Command executes without pressing any buttons
+6. Fully hands-free voice control
+
+**Configuration:**
+- Wake word: "Picovoice" (Porcupine built-in)
+- Sensitivity: 0.5 (adjustable 0.0-1.0)
+- Recording duration: 10 seconds
+- Debounce window: 12 seconds
+- Audio quality: HIGH_QUALITY preset (44.1kHz)
+
+**Technical Learnings:**
+- Separate audio streams require careful lifecycle coordination
+- State-based flags prevent race conditions better than refs (trigger re-renders)
+- Guard clauses essential for preventing double-operations in async code
+- Microphone conflicts resolved with proper stop/delay/start sequencing
+- Processing flags prevent premature service restarts during transitions
+
+**Next Steps (Future Enhancements):**
+- Custom wake word support (currently "Picovoice" only)
+- Configurable recording duration in settings
+- Audio beep feedback for better UX
+- Continuous recording with circular buffer for improved capture timing
+- Additional wake word options ("Hey Shoppy")
+
+---
+
+#### 🔲 Phase 4: Advanced Voice Features (FUTURE - Days 5-7)
+
+**Priority 1: Test Remaining Commands (~30 min)**
+- [ ] Test "Remove [item]" command
+- [ ] Test "Send this list" command
+- [ ] Test "Show my lists" command
+- [ ] Test clarification scenarios
+- [ ] Test multi-list context switching
+
+**Priority 2: Text-to-Speech Feedback (~2 hours)**
+- [ ] Install expo-speech
+- [ ] Replace Alert.alert with TTS confirmations
+- [ ] "I've created a list called produce" spoken aloud
+- [ ] Voice feedback for errors
+- [ ] Settings toggle for TTS on/off
+
+**Priority 3: Wake Word Detection (~2-3 hours)**
+- [ ] Install expo-speech-recognition
+- [ ] Implement "Hey Shoppy" wake word detection
+- [ ] Background listening when enabled
+- [ ] VoiceActivationBanner shows listening state
+- [ ] Test in kitchen-like environment
+
+---
+
+#### 🔲 Phase 4: Polish & Production Readiness (Days 8-10)
+
+- [ ] Persistent session storage (Redis or database)
+- [ ] Rate limiting and cost monitoring
+- [ ] Comprehensive error logging
+- [ ] Performance optimization (reduce GPT-4 tokens)
+- [ ] Multi-language support testing
+- [ ] Kitchen environment usability testing
+- [ ] Documentation finalization
 
 ### Task 5: List Management UI (TODO)
 

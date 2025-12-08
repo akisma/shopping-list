@@ -3,7 +3,7 @@
  * Main screen displaying all shopping lists
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,15 +17,17 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useShoppingLists, useCreateShoppingList, useDeleteShoppingList } from '@/hooks/use-shopping-lists';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
-import { VoiceStatusIndicator } from '@/components/VoiceStatusIndicator';
+import { VoiceButton } from '@/components/voice-button';
 import { VoiceActivationBanner } from '@/components/VoiceActivationBanner';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useVoiceCommands } from '@/hooks/use-voice-commands';
 import type { ShoppingListWithCount } from '@/types/api';
 
 export default function ShoppingListsScreen() {
@@ -35,6 +37,10 @@ export default function ShoppingListsScreen() {
   const deleteMutation = useDeleteShoppingList();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const insets = useSafeAreaInsets();
+  
+  // Voice commands hook
+  const { handleVoiceCommand, processing: voiceProcessing } = useVoiceCommands();
   
   // Create modal state
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -46,17 +52,18 @@ export default function ShoppingListsScreen() {
   const [listToDelete, setListToDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
-  // Voice activation state (stub for Phase 6)
-  const [voiceActivationEnabled] = useState(false);
+  // Voice activation state
+  const [voiceActivationEnabled] = useState(true);
 
-  // Handle voice button press
-  const handleVoicePress = () => {
-    Alert.alert(
-      'Voice Commands Coming Soon',
-      'Voice-powered list creation will be available in the next update. Say "Hey Shoppy" to get started!',
-      [{ text: 'OK' }]
-    );
-  };
+  // Handle voice command
+  const handleVoice = useCallback(async (audioBlob: string) => {
+    const result = await handleVoiceCommand(audioBlob);
+    
+    // If voice command created a list or added an item, refetch to show updated counts
+    if (result.success && (result.action === 'create_list' || result.action === 'add_item')) {
+      await refetch();
+    }
+  }, [handleVoiceCommand, refetch]);
 
   // Handle create list
   const handleCreateList = () => {
@@ -182,14 +189,14 @@ export default function ShoppingListsScreen() {
   // Empty State
   if (!lists || lists.length === 0) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
         <VoiceActivationBanner visible={voiceActivationEnabled} />
         <View style={styles.header}>
           <ThemedText type="title" style={styles.headerTitle}>
             Shopping Lists
           </ThemedText>
           <View style={styles.headerActions}>
-            <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+            <VoiceButton onVoiceCommand={handleVoice} processing={voiceProcessing} />
             <TouchableOpacity
               testID="create-list-button"
               style={[styles.createButton, { backgroundColor: colors.tint }]}
@@ -248,14 +255,14 @@ export default function ShoppingListsScreen() {
   );
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <VoiceActivationBanner visible={voiceActivationEnabled} />
       <View style={styles.header}>
         <ThemedText type="title" style={styles.headerTitle}>
           Shopping Lists
         </ThemedText>
         <View style={styles.headerActions}>
-          <VoiceStatusIndicator status="coming-soon" onPress={handleVoicePress} />
+          <VoiceButton onVoiceCommand={handleVoice} processing={voiceProcessing} />
           <TouchableOpacity
             testID="create-list-button"
             style={[styles.createButton, { backgroundColor: colors.tint }]}

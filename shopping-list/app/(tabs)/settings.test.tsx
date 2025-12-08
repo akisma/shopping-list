@@ -7,6 +7,19 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import SettingsScreen from './settings';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
+
+// Mock safe area insets
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 
 // Mock Alert for "Coming Soon" messages
 jest.spyOn(Alert, 'alert');
@@ -14,6 +27,7 @@ jest.spyOn(Alert, 'alert');
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   });
 
   describe('voice features section', () => {
