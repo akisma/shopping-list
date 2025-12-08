@@ -1,8 +1,8 @@
 # Shopping List Mobile App - Project Status
 
-**Last Updated:** November 28, 2025  
-**Current Phase:** Task 4 - Phase 2 Mobile Audio Capture Complete  
-**Overall Status:** ✅ Backend API Complete | ✅ Mobile CRUD Complete | ✅ Send to Manager Complete | ✅ Voice Stubs Complete | ✅ Backend Voice Services Complete | ✅ Mobile Audio & Voice Commands Working
+**Last Updated:** December 6, 2025  
+**Current Phase:** Task 4 - Phase 2.4 Wake Word Detection Complete  
+**Overall Status:** ✅ Backend API Complete | ✅ Mobile CRUD Complete | ✅ Send to Manager Complete | ✅ Voice Stubs Complete | ✅ Backend Voice Services Complete | ✅ Mobile Audio & Voice Commands Working | ✅ Wake Word Detection Complete
 
 ---
 
@@ -637,6 +637,145 @@ Total:    317/317 tests passing ✅
 - Graceful degradation: TTS → Alert when disabled
 - Semantic method extraction for maintainability
 - Zero failing tests policy enforced
+
+---
+
+#### ✅ Phase 2.4: Wake Word Detection & Auto-Recording (COMPLETE)
+
+**Status:** Complete - December 6, 2025  
+**Branch:** `feature/task-4-voice`  
+**Test Coverage:** 135/135 tests passing
+
+**Deliverables:**
+
+✅ **Porcupine Wake Word Integration**
+- Integrated @picovoice/porcupine-react-native 3.0.5
+- Wake word: "Picovoice" (built-in keyword)
+- Background listening with real-time detection
+- Configurable sensitivity (0.0 - 1.0, default 0.5)
+- Proper lifecycle management (start/stop/cleanup)
+
+✅ **Wake Word Manager Hook**
+- `useWakeWordManager` orchestrates wake word detection
+- Processing state flag prevents Porcupine restart during recording
+- 12-second debounce window prevents double detections
+- Clarification mode integration stops wake word during voice command processing
+- 100ms delay after stopping Porcupine for audio system release
+
+✅ **Settings UI**
+- Enable/disable wake word toggle
+- Sensitivity slider with real-time updates
+- Test button for immediate feedback
+- Persistent settings via AsyncStorage
+- All settings changes reflected immediately
+
+✅ **Visual Feedback**
+- VoiceActivationBanner shows wake word status
+- Blue banner (#3B82F6) during background wake word listening
+- "Ready! Speak your command now" when wake word detected
+- VoiceButton border turns blue when wake word active
+- 3-second visual flash on detection
+
+✅ **Auto-Recording Flow**
+- Wake word detected → Porcupine stops → 100ms delay → Recording starts
+- 10-second recording duration (increased from 6s for better capture)
+- Clarification mode set during recording prevents Porcupine interference
+- Guard clause prevents double-start of recording
+- Proper cleanup and wake word restart after command processed
+
+**Critical Bugs Fixed:**
+
+1. **Double Recording Issue**
+   - **Problem:** Porcupine restarting immediately after wake word detection while recording still active, causing second recording to overwrite first
+   - **Root Cause:** Wake word manager's useEffect responding to state changes and restarting Porcupine before recording complete
+   - **Solution:** Added `processingWakeWord` state flag to prevent restart + set clarification mode during recording to block wake word re-activation
+   - **Impact:** Eliminated double recordings, audio files no longer overwritten
+
+2. **Microphone Conflicts**
+   - **Problem:** Two audio streams (Porcupine + Expo Audio) competing for microphone access
+   - **Solution:** Stop Porcupine immediately on detection, add 100ms delay for audio system release, set clarification mode during recording
+   - **Impact:** Clean audio capture without interference, consistent 180 KB recordings vs previous 75 KB "You" transcriptions
+
+3. **Permission Race Condition**
+   - **Problem:** useState async updates meant `hasPermission` state checked before actually updated, causing "Cannot start - no permission" errors
+   - **Solution:** Removed stale permission checks from `startRecording()`, trust caller to verify permissions
+   - **Impact:** Permission errors eliminated, recording starts reliably
+
+4. **Double-Start Prevention**
+   - **Problem:** Second `startRecording()` call overwriting first recording
+   - **Solution:** Added `isRecording` guard clause in startRecording() to ignore duplicate start requests
+   - **Impact:** Second attempt logged "Already recording - ignoring start request", prevented file corruption
+
+**Architecture Patterns:**
+
+**Separate Audio Stream Pattern:**
+- Porcupine manages wake word detection stream (continuous)
+- Expo Audio manages command recording stream (on-demand)
+- Lifecycle coordination through state flags and mode transitions
+- Clean handoff: Porcupine stops → delay → Recording starts → Recording stops → Porcupine restarts
+
+**State-Based Lifecycle Management:**
+- `processingWakeWord` flag prevents premature Porcupine restart (500ms window)
+- `listeningMode` controls system state (inactive/background-wake-word/waiting-for-clarification)
+- Clarification mode doubles as recording-in-progress state
+- Guard clauses prevent race conditions in async operations
+
+**Files Modified:**
+- `hooks/use-wake-word-detection.ts` - Porcupine integration with lifecycle management
+- `hooks/use-wake-word-manager.ts` - Orchestration with processing flag and debouncing
+- `hooks/use-audio-recorder.ts` - Recording with isRecording guard clause
+- `hooks/use-voice-listening-context.tsx` - State management for wake word modes
+- `components/voice-button.tsx` - Auto-recording trigger with proper mode transitions
+- `components/VoiceActivationBanner.tsx` - Visual feedback for wake word states
+- `app/(tabs)/settings.tsx` - Wake word settings UI with toggle and slider
+- `backend/src/services/voice-service.ts` - Wake word stripping from transcripts
+
+**Test Results:**
+```
+Total Tests: 135/135 passing ✅
+- Wake word detection: 14 tests
+- Wake word + context integration: 24 tests  
+- Settings UI: 24 tests
+- Visual feedback: 10 tests
+- Device testing: Working on iPhone (iOS development build)
+```
+
+**Performance Metrics:**
+- Wake word detection latency: ~50-100ms
+- Recording start after wake word: ~50-100ms  
+- Audio capture: 180 KB for ~6 seconds (improved from 75 KB)
+- Backend processing: Full command transcribed successfully
+- Debounce window: 12 seconds (prevents double detections during full cycle)
+
+**User Experience:**
+Users can now:
+1. Enable wake word detection in Settings
+2. Say "Picovoice" + command (e.g., "Picovoice, create a list called Groceries")
+3. See visual feedback (blue banner appears)
+4. Recording automatically starts and captures command
+5. Command executes without pressing any buttons
+6. Fully hands-free voice control
+
+**Configuration:**
+- Wake word: "Picovoice" (Porcupine built-in)
+- Sensitivity: 0.5 (adjustable 0.0-1.0)
+- Recording duration: 10 seconds
+- Debounce window: 12 seconds
+- Audio quality: HIGH_QUALITY preset (44.1kHz)
+
+**Technical Learnings:**
+- Separate audio streams require careful lifecycle coordination
+- State-based flags prevent race conditions better than refs (trigger re-renders)
+- Guard clauses essential for preventing double-operations in async code
+- Microphone conflicts resolved with proper stop/delay/start sequencing
+- Processing flags prevent premature service restarts during transitions
+
+**Next Steps (Future Enhancements):**
+- Custom wake word support (currently "Picovoice" only)
+- Configurable recording duration in settings
+- Audio beep feedback for better UX
+- Continuous recording with circular buffer for improved capture timing
+- Additional wake word options ("Hey Shoppy")
 
 ---
 
