@@ -1,8 +1,10 @@
 # Shopping List & Recipe Assistant - Project Status
 
-**Last Updated:** December 6, 2025  
-**Current Phase:** Task 4 - Phase 2 Mobile Audio Capture Complete  
+**Last Updated:** December 8, 2025  
+**Current Phase:** Task 4 Complete → Home Cooking Expansion Planned  
 **Overall Status:** ✅ Backend API Complete | ✅ Mobile CRUD Complete | ✅ Send to Manager Complete | ✅ Voice Stubs Complete | ✅ Backend Voice Services Complete | ✅ Mobile Audio & Voice Commands Working
+
+**📋 GitHub Issues:** [36 issues created](#github-issues-reference) (#26-#61) across 6 epics for home cooking expansion
 
 ---
 
@@ -43,6 +45,8 @@
 ## 🏠 Home User Feature Set (Planned)
 
 ### Phase 1: Recipe Voice Assistant (Core Experience)
+
+> **GitHub Issues:** Epic 1 (#26, #28-#31) & Epic 2 (#32-#38)
 
 **Use Cases:**
 ```
@@ -95,6 +99,8 @@ Assistant: "Timer set for 3 minutes. I'll let you know when it's done."
 
 ### Phase 2: Shopping List Generation
 
+> **GitHub Issues:** Epic 3 (#39-#44)
+
 **Use Cases:**
 ```
 User: "Add this recipe to my shopping list"
@@ -138,6 +144,8 @@ Assistant: "Great! What type of cuisine or dietary preferences should I consider
 ---
 
 ### Phase 3: Grocery Delivery Integration
+
+> **GitHub Issues:** Epic 6 (#27, #57-#61)
 
 **Use Cases:**
 ```
@@ -426,33 +434,34 @@ GET    /api/v1/integrations/instacart/status    # Order status
 
 ### Home Cooking MVP (4-6 weeks)
 
-**Week 1: Recipe Infrastructure**
-- [ ] Database schema for recipes, steps, ingredients
-- [ ] Recipe API integration (start with Spoonacular)
-- [ ] Recipe search service
-- [ ] Basic recipe CRUD endpoints
-- [ ] Tests for recipe services
+**Week 1: Recipe Infrastructure** → [Epic 1: Issues #26, #28-#31](https://github.com/akisma/shopping-list/issues?q=is%3Aissue+is%3Aopen+%2326+OR+%2328+OR+%2329+OR+%2330+OR+%2331)
+- [ ] Database schema for recipes, steps, ingredients → [#28](https://github.com/akisma/shopping-list/issues/28)
+- [ ] Recipe API integration (start with Spoonacular) → [#26 SPIKE](https://github.com/akisma/shopping-list/issues/26)
+- [ ] Recipe search service → [#30](https://github.com/akisma/shopping-list/issues/30)
+- [ ] Basic recipe CRUD endpoints → [#29](https://github.com/akisma/shopping-list/issues/29)
+- [ ] Tests for recipe services → [#31](https://github.com/akisma/shopping-list/issues/31)
 
-**Week 2: Recipe Voice Assistant**
-- [ ] Recipe session management
-- [ ] Voice intent: find_recipe, start_recipe
-- [ ] Voice intent: next_step, previous_step, get_ingredient
-- [ ] Context-aware GPT-4 prompting
-- [ ] TTS for recipe instructions
+**Week 2: Recipe Voice Assistant** → [Epic 2: Issues #32-#38](https://github.com/akisma/shopping-list/issues?q=is%3Aissue+is%3Aopen+%2332+OR+%2333+OR+%2334+OR+%2335+OR+%2336+OR+%2337+OR+%2338)
+- [ ] Recipe session management → [#32](https://github.com/akisma/shopping-list/issues/32)
+- [ ] Voice intent: find_recipe, start_recipe → [#33](https://github.com/akisma/shopping-list/issues/33), [#34](https://github.com/akisma/shopping-list/issues/34)
+- [ ] Voice intent: next_step, previous_step, get_ingredient → [#35](https://github.com/akisma/shopping-list/issues/35), [#36](https://github.com/akisma/shopping-list/issues/36)
+- [ ] Context-aware GPT-4 prompting → [#37](https://github.com/akisma/shopping-list/issues/37)
+- [ ] TTS for recipe instructions → [#38](https://github.com/akisma/shopping-list/issues/38)
 - [ ] Tests for recipe voice commands
 
-**Week 3: Shopping List Generation**
-- [ ] Recipe → shopping list converter
-- [ ] Ingredient consolidation logic
-- [ ] Voice intent: generate_shopping_list, add_recipe_to_list
-- [ ] UI: Recipe detail with "Add to List" button
+**Week 3: Shopping List Generation** → [Epic 3: Issues #39-#44](https://github.com/akisma/shopping-list/issues?q=is%3Aissue+is%3Aopen+%2339+OR+%2340+OR+%2341+OR+%2342+OR+%2343+OR+%2344)
+- [ ] Recipe → shopping list converter → [#39](https://github.com/akisma/shopping-list/issues/39)
+- [ ] Ingredient consolidation logic → [#40](https://github.com/akisma/shopping-list/issues/40)
+- [ ] Voice intent: generate_shopping_list, add_recipe_to_list → [#42](https://github.com/akisma/shopping-list/issues/42), [#43](https://github.com/akisma/shopping-list/issues/43)
+- [ ] UI: Recipe detail with "Add to List" button → [#44](https://github.com/akisma/shopping-list/issues/44)
 - [ ] Tests for list generation
 
-**Week 4: Timer & Cooking Utilities**
-- [ ] Timer service with notifications
-- [ ] Voice intent: set_timer, check_timer, cancel_timer
-- [ ] Measurement conversions
-- [ ] Temperature conversions (F ↔ C)
+**Week 4: Timer & Cooking Utilities** → [Epic 4: Issues #45-#50](https://github.com/akisma/shopping-list/issues?q=is%3Aissue+is%3Aopen+%2345+OR+%2346+OR+%2347+OR+%2348+OR+%2349+OR+%2350)
+- [ ] Timer service with notifications → [#45](https://github.com/akisma/shopping-list/issues/45)
+- [ ] Voice intent: set_timer, check_timer, cancel_timer → [#46](https://github.com/akisma/shopping-list/issues/46), [#47](https://github.com/akisma/shopping-list/issues/47)
+- [ ] Timer UI widget → [#48](https://github.com/akisma/shopping-list/issues/48)
+- [ ] Measurement conversions → [#49](https://github.com/akisma/shopping-list/issues/49)
+- [ ] Temperature conversions (F ↔ C) → [#50](https://github.com/akisma/shopping-list/issues/50)
 - [ ] Tests for utilities
 
 **Weeks 5-6: Polish & Testing**
@@ -466,14 +475,18 @@ GET    /api/v1/integrations/instacart/status    # Order status
 
 ### Grocery Integration Phase (2-3 weeks)
 
-**Week 1: Instacart API**
-- [ ] Partner API credentials/approval
-- [ ] OAuth authentication flow
-- [ ] Cart creation from shopping list
-- [ ] Checkout API integration
+> **GitHub Issues:** Epic 6 (#27, #57-#61) + Epic 5 (#51-#56)
+
+**Week 1: Instacart API** → [Issues #57-#59](https://github.com/akisma/shopping-list/issues?q=is%3Aissue+is%3Aopen+%2357+OR+%2358+OR+%2359)
+- [ ] Partner API credentials/approval → [#27 SPIKE](https://github.com/akisma/shopping-list/issues/27)
+- [ ] OAuth authentication flow → [#57](https://github.com/akisma/shopping-list/issues/57)
+- [ ] Cart creation from shopping list → [#58](https://github.com/akisma/shopping-list/issues/58)
+- [ ] Checkout API integration → [#59](https://github.com/akisma/shopping-list/issues/59)
 - [ ] Order tracking
 
-**Week 2: Multi-Provider Support**
+**Week 2: Multi-Provider Support** → [Issues #60-#61](https://github.com/akisma/shopping-list/issues?q=is%3Aissue+is%3Aopen+%2360+OR+%2361)
+- [ ] Voice intent: order_groceries → [#60](https://github.com/akisma/shopping-list/issues/60)
+- [ ] Multi-provider grocery support → [#61](https://github.com/akisma/shopping-list/issues/61)
 - [ ] Walmart API integration
 - [ ] Amazon Fresh integration (if available)
 - [ ] Price comparison service
@@ -809,28 +822,30 @@ function consolidateIngredients(ingredients: Ingredient[]): Ingredient[] {
 ## 🎯 MVP Feature Prioritization
 
 **Must-Have (MVP):**
-1. ✅ Voice-driven shopping lists (restaurant)
-2. 🔲 Recipe search with voice
-3. 🔲 Step-by-step voice cooking guidance
-4. 🔲 "Next step" / "How much X" commands
-5. 🔲 Recipe → shopping list generation
-6. 🔲 Basic timer functionality
+1. ✅ Voice-driven shopping lists (restaurant) - *Complete*
+2. 🟡 Recipe search with voice → [#26](https://github.com/akisma/shopping-list/issues/26), [#30](https://github.com/akisma/shopping-list/issues/30), [#33](https://github.com/akisma/shopping-list/issues/33)
+3. 🟡 Step-by-step voice cooking guidance → [#34](https://github.com/akisma/shopping-list/issues/34), [#35](https://github.com/akisma/shopping-list/issues/35)
+4. 🟡 "Next step" / "How much X" commands → [#35](https://github.com/akisma/shopping-list/issues/35), [#36](https://github.com/akisma/shopping-list/issues/36)
+5. 🟡 Recipe → shopping list generation → [#39](https://github.com/akisma/shopping-list/issues/39), [#42](https://github.com/akisma/shopping-list/issues/42)
+6. 🟡 Basic timer functionality → [#45](https://github.com/akisma/shopping-list/issues/45), [#46](https://github.com/akisma/shopping-list/issues/46)
 
 **Should-Have (V1.1):**
-7. 🔲 Meal planning (multi-recipe lists)
-8. 🔲 Ingredient consolidation
+7. 🟡 Meal planning (multi-recipe lists) → [#51](https://github.com/akisma/shopping-list/issues/51)-[#56](https://github.com/akisma/shopping-list/issues/56)
+8. 🟡 Ingredient consolidation → [#40](https://github.com/akisma/shopping-list/issues/40), [#54](https://github.com/akisma/shopping-list/issues/54)
 9. 🔲 Pantry inventory (optional)
-10. 🔲 Instacart integration
+10. 🟡 Instacart integration → [#57](https://github.com/akisma/shopping-list/issues/57)-[#59](https://github.com/akisma/shopping-list/issues/59)
 11. 🔲 Recipe favorites/bookmarks
 12. 🔲 Serving size adjustments
 
 **Nice-to-Have (V2.0):**
-13. 🔲 Multi-provider grocery comparison
+13. 🟡 Multi-provider grocery comparison → [#61](https://github.com/akisma/shopping-list/issues/61)
 14. 🔲 Nutrition information
 15. 🔲 Dietary filtering
 16. 🔲 Video instructions
 17. 🔲 Social features
 18. 🔲 Custom recipe creation
+
+*Legend: ✅ Complete | 🟡 Issue Created | 🔲 Not Started*
 
 ---
 
@@ -851,7 +866,9 @@ function consolidateIngredients(ingredients: Ingredient[]): Ingredient[] {
 
 ## Git Workflow
 
-**Current Branch:** `feature/task-2`
+**Current Branch:** `feature/recipe-foundations`
+
+**GitHub Issues:** 36 issues created (#26-#61) - See [GitHub Issues Reference](#github-issues-reference) below
 
 **Future Branches:**
 - `feature/home-cooking-mvp` - Recipe voice assistant core
@@ -881,3 +898,127 @@ function consolidateIngredients(ingredients: Ingredient[]): Ingredient[] {
 ---
 
 **🎉 Current Status: Restaurant mode complete, Home cooking mode planned!**
+
+---
+
+## 📋 GitHub Issues Reference
+
+> **Created:** December 8, 2025 | **Total Issues:** 36 (#26-#61) | **Repository:** [akisma/shopping-list](https://github.com/akisma/shopping-list/issues)
+
+### Epic 1: Recipe Infrastructure (5 issues)
+| Issue | Title | Dependencies |
+|-------|-------|--------------|
+| [#26](https://github.com/akisma/shopping-list/issues/26) | **SPIKE: Recipe API Evaluation** | None (start first) |
+| [#28](https://github.com/akisma/shopping-list/issues/28) | Recipe Database Schema | #26 |
+| [#29](https://github.com/akisma/shopping-list/issues/29) | Recipe CRUD Endpoints | #28 |
+| [#30](https://github.com/akisma/shopping-list/issues/30) | Recipe Search Service | #28, #29 |
+| [#31](https://github.com/akisma/shopping-list/issues/31) | Recipe Service Unit Tests | #29, #30 |
+
+### Epic 2: Recipe Voice Commands (7 issues)
+| Issue | Title | Dependencies |
+|-------|-------|--------------|
+| [#32](https://github.com/akisma/shopping-list/issues/32) | Recipe Session Management | #28 |
+| [#33](https://github.com/akisma/shopping-list/issues/33) | Voice Intent: find_recipe | #30 |
+| [#34](https://github.com/akisma/shopping-list/issues/34) | Voice Intent: start_recipe | #32, #29 |
+| [#35](https://github.com/akisma/shopping-list/issues/35) | Voice Intent: Recipe Navigation | #32 |
+| [#36](https://github.com/akisma/shopping-list/issues/36) | Voice Intent: get_ingredient | #32, #28 |
+| [#37](https://github.com/akisma/shopping-list/issues/37) | Context-Aware GPT-4 Prompting | #32 |
+| [#38](https://github.com/akisma/shopping-list/issues/38) | TTS for Recipe Instructions | #35 |
+
+### Epic 3: Shopping List Generation (6 issues)
+| Issue | Title | Dependencies |
+|-------|-------|--------------|
+| [#39](https://github.com/akisma/shopping-list/issues/39) | Recipe to Shopping List Converter | #28 |
+| [#40](https://github.com/akisma/shopping-list/issues/40) | Ingredient Consolidation Logic | #39 |
+| [#41](https://github.com/akisma/shopping-list/issues/41) | Shopping List Schema Extensions | #28 |
+| [#42](https://github.com/akisma/shopping-list/issues/42) | Voice Intent: generate_shopping_list | #39, #32, #41 |
+| [#43](https://github.com/akisma/shopping-list/issues/43) | Voice Intent: add_recipe_to_list | #39, #40, #32 |
+| [#44](https://github.com/akisma/shopping-list/issues/44) | UI: Recipe Detail Add to List Button | #39, #41 |
+
+### Epic 4: Timer & Utilities (6 issues)
+| Issue | Title | Dependencies |
+|-------|-------|--------------|
+| [#45](https://github.com/akisma/shopping-list/issues/45) | Timer Service | #32 |
+| [#46](https://github.com/akisma/shopping-list/issues/46) | Voice Intent: set_timer | #45, #32 |
+| [#47](https://github.com/akisma/shopping-list/issues/47) | Voice Intent: Timer Management | #45, #46 |
+| [#48](https://github.com/akisma/shopping-list/issues/48) | Timer UI Widget | #45 |
+| [#49](https://github.com/akisma/shopping-list/issues/49) | Measurement Conversion Service | None |
+| [#50](https://github.com/akisma/shopping-list/issues/50) | Temperature Conversion Voice Intent | #49, #32 |
+
+### Epic 5: Meal Planning (6 issues)
+| Issue | Title | Dependencies |
+|-------|-------|--------------|
+| [#51](https://github.com/akisma/shopping-list/issues/51) | Meal Plan Database Schema | #28 |
+| [#52](https://github.com/akisma/shopping-list/issues/52) | Meal Plan CRUD Endpoints | #51, #28 |
+| [#53](https://github.com/akisma/shopping-list/issues/53) | Add Recipe to Meal Plan | #52, #29 |
+| [#54](https://github.com/akisma/shopping-list/issues/54) | Multi-Recipe Consolidation | #40, #52, #49 |
+| [#55](https://github.com/akisma/shopping-list/issues/55) | Voice Intent: plan_meals | #52, #54, #32 |
+| [#56](https://github.com/akisma/shopping-list/issues/56) | Meal Plan UI Screen | #52, #53, #54 |
+
+### Epic 6: Grocery Delivery Integration (6 issues)
+| Issue | Title | Dependencies |
+|-------|-------|--------------|
+| [#27](https://github.com/akisma/shopping-list/issues/27) | **SPIKE: Grocery Delivery API Evaluation** | None (start first) |
+| [#57](https://github.com/akisma/shopping-list/issues/57) | Instacart OAuth Integration | #27 |
+| [#58](https://github.com/akisma/shopping-list/issues/58) | Instacart Cart Creation | #57, #41 |
+| [#59](https://github.com/akisma/shopping-list/issues/59) | Instacart Checkout Deep Link | #58, #57 |
+| [#60](https://github.com/akisma/shopping-list/issues/60) | Voice Intent: order_groceries | #57, #58, #59 |
+| [#61](https://github.com/akisma/shopping-list/issues/61) | Multi-Provider Grocery Support | #57, #58, #27 |
+
+### Recommended Implementation Order
+
+```
+Phase 1: Foundation (Weeks 1-2)
+├── #26 SPIKE: Recipe API (research)
+├── #27 SPIKE: Grocery API (research)
+├── #28 Recipe Database Schema
+├── #29 Recipe CRUD Endpoints
+├── #30 Recipe Search Service
+├── #31 Recipe Service Tests
+└── #49 Measurement Conversion (foundational utility)
+
+Phase 2: Voice Assistant (Weeks 2-3)
+├── #32 Recipe Session Management ⭐ (key dependency)
+├── #33 Voice Intent: find_recipe
+├── #34 Voice Intent: start_recipe
+├── #35 Voice Intent: Recipe Navigation
+├── #36 Voice Intent: get_ingredient
+├── #37 Context-Aware GPT-4 Prompting
+└── #38 TTS for Recipe Instructions
+
+Phase 3: Shopping & Timers (Weeks 3-4)
+├── #39 Recipe to Shopping List Converter
+├── #40 Ingredient Consolidation
+├── #41 Shopping List Schema Extensions
+├── #42 Voice Intent: generate_shopping_list
+├── #43 Voice Intent: add_recipe_to_list
+├── #44 UI: Add to List Button
+├── #45 Timer Service
+├── #46 Voice Intent: set_timer
+├── #47 Voice Intent: Timer Management
+├── #48 Timer UI Widget
+└── #50 Temperature Conversion Voice Intent
+
+Phase 4: Meal Planning (Weeks 5-6)
+├── #51 Meal Plan Database Schema
+├── #52 Meal Plan CRUD Endpoints
+├── #53 Add Recipe to Meal Plan
+├── #54 Multi-Recipe Consolidation
+├── #55 Voice Intent: plan_meals
+└── #56 Meal Plan UI Screen
+
+Phase 5: Grocery Integration (Weeks 6-8)
+├── #57 Instacart OAuth
+├── #58 Instacart Cart Creation
+├── #59 Instacart Checkout
+├── #60 Voice Intent: order_groceries
+└── #61 Multi-Provider Support
+```
+
+### Quick Links
+
+- **All Open Issues:** [View on GitHub](https://github.com/akisma/shopping-list/issues?q=is%3Aissue+is%3Aopen)
+- **SPIKEs (Research):** [#26](https://github.com/akisma/shopping-list/issues/26), [#27](https://github.com/akisma/shopping-list/issues/27)
+- **Voice Intents:** #33-#36, #42-#43, #46-#47, #50, #55, #60
+- **Database/Schema:** #28, #41, #51
+- **UI Components:** #44, #48, #56
